@@ -7,6 +7,7 @@
     <title>@yield('title', '상권분석 플랫폼') · {{ config('app.name') }}</title>
     <meta name="description" content="@yield('description', '공공데이터 기반 유동인구·카드매출 상권분석 리포트를 몇 초 만에 받아보세요.')">
 
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">

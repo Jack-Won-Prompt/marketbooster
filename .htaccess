@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# XAMPP 서브폴더 배치용 (http://localhost/market)
+#
+# 프로젝트 루트가 문서 루트(htdocs) 안에 있으므로, 공개해도 되는 것은
+# public/ 아래 정적 파일과 루트 index.php 뿐입니다. 나머지 소스·설정·로그·
+# 의존성 디렉터리는 아래에서 모두 막습니다.
+#
+# 운영 서버라면 이 방식 대신 가상호스트의 DocumentRoot 를 public/ 으로
+# 지정하는 편이 안전합니다.
+# ─────────────────────────────────────────────────────────────────────────────
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /market/
+
+    # 0-a) 소스 · 설정 · 로그 · 의존성 디렉터리는 웹에서 접근 불가
+    RewriteRule ^(app|bootstrap|config|database|node_modules|resources|routes|storage|tests|vendor)(/|$) - [F,L]
+
+    # 0-b) 점으로 시작하는 경로(.git, .env, .github …) 차단. ACME 용 .well-known 만 허용
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+
+    # 1) public/ 에 실제로 존재하는 정적 파일(build 산출물, 이미지 등)은 그대로 서빙
+    #    단, index.php 는 제외해야 함 (제외하지 않으면 2)에서 넘어온 요청이
+    #    public/index.php 로 다시 잡혀 base 경로(/market)가 어긋남)
+    RewriteCond %{DOCUMENT_ROOT}/market/public/$1 -f
+    RewriteCond $1 !^index\.php$
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # 2) 그 외 모든 요청은 루트 index.php(Laravel)로 전달 → base 경로 = /market
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# mod_rewrite 가 없거나 꺼진 경우를 대비한 이중 방어
+<FilesMatch "^(\.|composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml|artisan|README\.md|vite\.config\.js|.*\.(log|sql|md|lock|yml|yaml)$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>

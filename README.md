@@ -66,15 +66,40 @@ npm run build
 > 경계 GeoJSON(`dong_boundary.geojson`, `properties.adm_nm` 에 전체 명칭)을 함께 두면
 > 면적과 반경 겹침이 실제 경계로 계산됩니다.
 
-로컬 실행:
+### 실행 방법 1 — XAMPP (Apache) 서브폴더
+
+`htdocs/market` 에 두면 **`php artisan serve` 없이** `http://localhost/market` 으로 바로 열립니다.
+
+프로젝트 루트의 `index.php` 와 `.htaccess` 가 이를 처리합니다.
+
+| 파일 | 역할 |
+|---|---|
+| `index.php` | 루트에서 Laravel 을 부트스트랩해 base 경로를 `/market` 으로 인식시킴 |
+| `.htaccess` | `public/` 의 정적 파일은 그대로 서빙, 나머지는 루트 `index.php` 로 전달<br>소스·설정·로그·의존성 디렉터리와 점 파일(`.env`, `.git` …)은 403 차단 |
+
+폴더 이름을 `market` 이 아닌 것으로 바꾸면 `.htaccess` 의 `RewriteBase /market/`,
+`%{DOCUMENT_ROOT}/market/public/$1` 두 줄과 `.env` 의 `APP_URL` 을 함께 고쳐야 합니다.
+
+> **PHP 버전 주의**
+> XAMPP 의 Apache 는 자체 PHP(예: 8.2.12)를 쓰고 CLI 는 다른 버전일 수 있습니다.
+> 더 높은 CLI 로 `composer install` 하면 vendor 가 그 버전을 요구하도록 빌드되어
+> Apache 에서 `platform_check` 오류가 납니다.
+> 이를 막기 위해 `composer.json` 에 `config.platform.php` 를 **Apache 의 PHP 버전**으로
+> 고정해 두었습니다. 환경이 다르면 그 값을 바꾸고 `composer update -W` 를 실행하세요.
+
+> **운영 배포**
+> 루트 진입점 방식은 프로젝트 루트가 문서 루트 안에 놓이는 구조입니다.
+> 운영 서버에서는 가상호스트의 `DocumentRoot` 를 `public/` 으로 지정하고
+> 루트 `index.php` · `.htaccess` 는 쓰지 않는 편이 안전합니다.
+
+### 실행 방법 2 — 내장 서버
 
 ```bash
 php artisan serve      # http://127.0.0.1:8000
-npm run dev            # 프런트엔드 개발 서버
+npm run dev            # 프런트엔드 개발 서버(HMR)
 ```
 
-XAMPP 하위 폴더(`htdocs/market`)로 접근할 때는 `.env` 의 `APP_URL` 을
-`http://localhost/market/public` 로 맞춰 주세요.
+이 경우 `.env` 의 `APP_URL` 을 `http://127.0.0.1:8000` 으로 바꿔 주세요.
 
 ---
 
