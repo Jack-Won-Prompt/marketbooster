@@ -125,6 +125,34 @@ class StoreClassifier
     }
 
     /**
+     * 업종 이름 자체를 상호로 쓴 것들. 브랜드가 아니라 업종 설명이다.
+     *
+     * "컴퓨터수리" · "입주청소" 처럼 흔한 표현은 어떤 숫자 기준을 세워도 통과한다.
+     * 업종 분류표에 그대로 있는 말이면 상호로 보지 않는다.
+     *
+     * @return array<string, true>  정규화한 업종 이름 집합
+     */
+    private function industryWords(): array
+    {
+        $words = [];
+
+        foreach (['large_name', 'middle_name', 'small_name'] as $column) {
+            foreach (DB::table('stores')->distinct()->whereNotNull($column)->pluck($column) as $label) {
+                // "김밥/만두/분식" 처럼 여러 말이 묶인 것은 낱말로도 쪼개 둔다.
+                foreach (preg_split('#[/·,]#u', (string) $label) ?: [] as $word) {
+                    $normalized = Franchises::normalize($word);
+
+                    if (mb_strlen($normalized) >= 2) {
+                        $words[$normalized] = true;
+                    }
+                }
+            }
+        }
+
+        return $words;
+    }
+
+    /**
      * 사전에 없는 상호 중 여러 행정동에 반복되는 것을 체인으로 본다.
      */
     private function fillChainBrands(?callable $progress = null): int
@@ -140,7 +168,12 @@ class StoreClassifier
             )
             ->pluck('name');
 
-        $usable = $names->filter(fn (string $name) => Franchises::isUsableName($name))->values();
+        $industryWords = $this->industryWords();
+
+        $usable = $names
+            ->filter(fn (string $name) => Franchises::isUsableName($name))
+            ->reject(fn (string $name) => isset($industryWords[Franchises::normalize($name)]))
+            ->values();
         $updated = 0;
 
         foreach ($usable->chunk(200) as $chunk) {

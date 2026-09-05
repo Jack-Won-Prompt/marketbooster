@@ -110,6 +110,33 @@ class StoreClassifierTest extends TestCase
         $this->assertNull(DB::table('stores')->where('store_id', 'e-0-0')->value('brand'));
     }
 
+    public function test_업종_이름을_그대로_쓴_상호는_체인으로_보지_않는다(): void
+    {
+        // "컴퓨터수리" 는 업종 분류표에 있는 말이지 브랜드가 아니다.
+        for ($d = 0; $d < StoreClassifier::CHAIN_MIN_DONGS; $d++) {
+            $code = '4115'.str_pad((string) (510 + $d * 10), 4, '0', STR_PAD_LEFT);
+
+            for ($i = 0; $i < 3; $i++) {
+                $now = now();
+
+                DB::table('stores')->insert([
+                    'store_id' => "i-{$d}-{$i}",
+                    'name' => '컴퓨터수리',
+                    'region_code' => $code,
+                    'sido_name' => '경기도', 'sigungu_name' => '의정부시', 'dong_name' => '테스트동',
+                    'large_code' => 'S2', 'large_name' => '수리·개인',
+                    'middle_code' => 'S201', 'middle_name' => '컴퓨터 수리',
+                    'small_code' => 'S20101', 'small_name' => '컴퓨터 수리',
+                    'collected_at' => $now, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+            }
+        }
+
+        app(StoreClassifier::class)->classify();
+
+        $this->assertNull(DB::table('stores')->where('store_id', 'i-0-0')->value('brand'));
+    }
+
     public function test_상호가_없는_행은_브랜드를_붙이지_않는다(): void
     {
         $this->chain('h', '업소명없음', StoreClassifier::CHAIN_MIN_DONGS, 3);
