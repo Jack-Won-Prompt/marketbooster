@@ -14,6 +14,35 @@
         'evening_floating' => '저녁* 유동인구',
         'workplace' => '직장인구',
     ];
+
+    // 이 범위·기간에 실제로 수록된 통계. 예전에 만든 리포트에는 없으므로 없으면 모두 수록으로 본다.
+    $coverage = $meta['coverage'] ?? [];
+    $covered = fn (string $key) => ($coverage[$key] ?? true) === true;
+    $noSource = ($meta['sido_name'] ?? '이 지역').' 은(는) 아직 이 항목을 행정동 단위로 공개하는 출처를 확보하지 못했습니다.';
+
+    // 비교 표에는 수록된 항목만 올린다. 미수록을 0 으로 적으면 비교가 거짓말이 된다.
+    $comparableMetrics = array_filter(
+        $summaryMetrics,
+        fn ($key) => ($summary['coverage'][$key] ?? true) === true,
+        ARRAY_FILTER_USE_KEY
+    );
+
+    // 목차는 실제로 실린 장만 적는다.
+    $chapters = [['인구 요약', ['거주 인구(추정)', '배후세대', '직장인구', '유동인구']]];
+
+    if ($covered('sales')) {
+        $chapters[] = ['카드매출 분석', ['업종별 매출', '요일 · 시간대별 매출', '성 · 연령별 매출']];
+    }
+
+    if ($covered('stores')) {
+        $chapters[] = ['업종 분야 · 프랜차이즈', ['분야별 점포', '프랜차이즈 브랜드', '세부 업종 상위']];
+    }
+
+    if ($covered('students') || $covered('academies')) {
+        $chapters[] = ['학생 수 분석', ['학생 수', '학원 수']];
+    }
+
+    $chapters[] = ['데이터 출처', []];
 @endphp
 <!DOCTYPE html>
 <html lang="ko">
@@ -174,15 +203,10 @@
     <h2>목차</h2>
 
     <table style="margin-top: 8mm;">
-        @foreach ([
-            ['1. 인구 요약', ['거주 인구(추정)', '배후세대', '직장인구', '유동인구']],
-            ['2. 카드매출 분석', ['업종별 매출', '요일 · 시간대별 매출', '성 · 연령별 매출']],
-            ['3. 학생 수 분석', ['학생 수', '학원 수']],
-            ['4. 데이터 출처', []],
-        ] as [$chapter, $items])
+        @foreach ($chapters as $index => [$chapter, $items])
             <tr>
                 <td style="padding-top: 6mm; border-bottom: 0.8pt solid #100f14; font-size: 11pt; font-weight: bold;">
-                    {{ $chapter }}
+                    {{ $index + 1 }}. {{ $chapter }}
                 </td>
             </tr>
             @foreach ($items as $item)
@@ -202,18 +226,24 @@
             @foreach ($summaryMetrics as $key => $label)
                 <td>
                     <div class="card-label">{{ $label }}</div>
-                    <div class="card-value">{{ number_format($summary['selected'][$key]) }}</div>
-                    <div class="card-level">{{ $summary['levels'][$key] }}</div>
+                    @if (($summary['coverage'][$key] ?? true) === true)
+                        <div class="card-value">{{ number_format($summary['selected'][$key]) }}</div>
+                        <div class="card-level">{{ $summary['levels'][$key] }}</div>
+                    @else
+                        <div class="card-value">—</div>
+                        <div class="card-level">미수록</div>
+                    @endif
                 </td>
             @endforeach
         </tr>
     </table>
 
+    @if ($comparableMetrics)
     <table class="data" style="margin-top: 5mm;">
         <thead>
             <tr>
                 <th>지역명</th>
-                @foreach ($summaryMetrics as $label)
+                @foreach ($comparableMetrics as $label)
                     <th class="num">{{ $label }}</th>
                 @endforeach
             </tr>
@@ -221,24 +251,25 @@
         <tbody>
             <tr class="highlight">
                 <td>선택지역</td>
-                @foreach (array_keys($summaryMetrics) as $key)
+                @foreach (array_keys($comparableMetrics) as $key)
                     <td class="num">{{ number_format($summary['selected'][$key]) }}</td>
                 @endforeach
             </tr>
             <tr>
                 <td>{{ $meta['sido_name'] }} 평균</td>
-                @foreach (array_keys($summaryMetrics) as $key)
+                @foreach (array_keys($comparableMetrics) as $key)
                     <td class="num">{{ number_format($summary['sido'][$key] ?? 0) }}</td>
                 @endforeach
             </tr>
             <tr>
                 <td>{{ $meta['sigungu_name'] }} 평균</td>
-                @foreach (array_keys($summaryMetrics) as $key)
+                @foreach (array_keys($comparableMetrics) as $key)
                     <td class="num">{{ number_format($summary['sigungu'][$key] ?? 0) }}</td>
                 @endforeach
             </tr>
         </tbody>
     </table>
+    @endif
 
     <p class="muted" style="margin-top: 2mm;">
         * 점심/저녁 유동인구 : 해당 시간대의 하루 평균 유동인구입니다. (점심 11~14시, 저녁 18~20시)<br>
@@ -252,6 +283,12 @@
     </div>
 
     <h3>거주 인구(추정)</h3>
+    @if (! $covered('resident'))
+    <div style="border: 0.5pt dashed #d8e1ef; background-color: #f6f8fa; padding: 5mm; text-align: center; margin-top: 4mm;">
+        <div style="font-weight: bold; font-size: 9pt; color: #5a6274;">이 지역은 아직 수록되지 않았습니다</div>
+        <div class="muted" style="margin-top: 1.5mm;">{{ $noSource }}</div>
+    </div>
+    @else
     <table>
         <tr>
             <td style="width: 52%; vertical-align: top; padding-right: 5mm;">
@@ -293,6 +330,7 @@
         </tr>
     </table>
     <p class="muted">* 주민등록인구 수와 배후세대 분포를 활용해 해당 지역에 거주하는 인구를 추정한 정보입니다.</p>
+    @endif
 </div>
 
 {{-- ─── 배후세대 · 직장인구 ──────────────────────────────────── --}}
@@ -300,6 +338,12 @@
     <h2>인구 상세분석</h2>
 
     <h3>배후세대</h3>
+    @if (! $covered('households'))
+    <div style="border: 0.5pt dashed #d8e1ef; background-color: #f6f8fa; padding: 5mm; text-align: center; margin-top: 4mm;">
+        <div style="font-weight: bold; font-size: 9pt; color: #5a6274;">이 지역은 아직 수록되지 않았습니다</div>
+        <div class="muted" style="margin-top: 1.5mm;">{{ $noSource }}</div>
+    </div>
+    @else
     <table>
         <tr>
             <td style="width: 52%; vertical-align: top; padding-right: 5mm;">
@@ -352,7 +396,15 @@
         </tbody>
     </table>
 
+    @endif
+
     <h3>직장인구</h3>
+    @if (! $covered('workplace'))
+    <div style="border: 0.5pt dashed #d8e1ef; background-color: #f6f8fa; padding: 5mm; text-align: center; margin-top: 4mm;">
+        <div style="font-weight: bold; font-size: 9pt; color: #5a6274;">이 지역은 아직 수록되지 않았습니다</div>
+        <div class="muted" style="margin-top: 1.5mm;">{{ $noSource }}</div>
+    </div>
+    @else
     <table>
         <tr>
             <td style="width: 52%; vertical-align: top; padding-right: 5mm;">
@@ -394,9 +446,11 @@
         </tr>
     </table>
     <p class="muted">* 사업체 조사를 기반으로 주거건물을 제외한 건물의 면적과 층수를 고려해 산정한 정보입니다.</p>
+    @endif
 </div>
 
 {{-- ─── 유동인구 ─────────────────────────────────────────────── --}}
+@if ($covered('floating'))
 <div class="page-break">
     <h2>유동인구</h2>
     <div class="unit">단위 : 명</div>
@@ -481,7 +535,10 @@
     </table>
 </div>
 
+@endif
+
 {{-- ─── 카드매출 ─────────────────────────────────────────────── --}}
+@if ($covered('sales'))
 <div class="page-break">
     <h2>카드매출 분석</h2>
 
@@ -569,7 +626,129 @@
     </div>
 </div>
 
+@endif
+
+{{-- ─── 업종 분야 · 프랜차이즈 ───────────────────────────────── --}}
+@if ($covered('stores'))
+@php $stores = $report['stores']; @endphp
+<div class="page-break">
+    <h2>업종 분야 · 프랜차이즈</h2>
+
+    <table class="cards">
+        <tr>
+            <td style="width:25%;">
+                <div class="card-label">전체 점포</div>
+                <div class="card-value">{{ number_format($stores['total']) }}개</div>
+            </td>
+            <td style="width:25%;">
+                <div class="card-label">프랜차이즈</div>
+                <div class="card-value">{{ number_format($stores['franchise_total'] ?? 0) }}개</div>
+            </td>
+            <td style="width:25%;">
+                <div class="card-label">프랜차이즈 비중</div>
+                <div class="card-value">{{ number_format($stores['franchise_share'] ?? 0, 1) }}%</div>
+            </td>
+            <td style="width:25%;">
+                <div class="card-label">최다 분야</div>
+                <div class="card-value" style="font-size: 11pt;">{{ $stores['by_sector'][0]['name'] ?? '-' }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <h3>분야별 점포</h3>
+    @include('reports.partials.hbar', [
+        'money' => false,
+        'rows' => collect($stores['by_sector'])->map(fn ($item) => [
+            'label' => $item['name'],
+            'bars' => [['value' => $item['count'], 'color' => '#0593ff']],
+        ])->all(),
+    ])
+
+    <h3>분야별 프랜차이즈 비중</h3>
+    <div class="unit">단위 : 개</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th>분야</th>
+                <th class="num">점포</th>
+                <th class="num">비중</th>
+                <th class="num">프랜차이즈</th>
+                <th class="num">프랜차이즈율</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($stores['by_sector'] as $sector)
+                <tr>
+                    <td>{{ $sector['name'] }}</td>
+                    <td class="num">{{ number_format($sector['count']) }}</td>
+                    <td class="num">{{ number_format($sector['share'], 1) }}%</td>
+                    <td class="num">{{ number_format($sector['franchises'] ?? 0) }}</td>
+                    <td class="num">{{ number_format($sector['franchise_share'] ?? 0, 1) }}%</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <div class="insight">
+        @foreach ($stores['insights'] ?? [] as $line)
+            <p>{{ $line }}</p>
+        @endforeach
+    </div>
+
+    <p class="muted">* 소상공인시장진흥공단 상가(상권)정보의 실제 점포를 분야와 브랜드로 분류했습니다.</p>
+</div>
+
+<div class="page-break">
+    <h2>프랜차이즈 브랜드</h2>
+
+    @if (empty($stores['brands']))
+        <p class="muted">이 범위에서 프랜차이즈로 확인된 점포가 없습니다.</p>
+    @else
+        <div class="unit">단위 : 개</div>
+        <table class="data">
+            <thead>
+                <tr><th>분야</th><th>브랜드</th><th class="num">매장 수</th><th class="num">전체 대비</th></tr>
+            </thead>
+            <tbody>
+                @foreach ($stores['brands'] as $brand)
+                    <tr>
+                        <td>{{ $brand['sector_name'] }}</td>
+                        <td>{{ $brand['name'] }}</td>
+                        <td class="num">{{ number_format($brand['count']) }}</td>
+                        <td class="num">{{ number_format($brand['share'], 1) }}%</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        <p class="muted">
+            * 브랜드는 상호에서 확인한 값입니다. 잘 알려진 프랜차이즈는 표기가 달라도 하나로 묶었고,
+            사전에 없는 상호라도 여러 행정동에 반복되면 체인으로 보았습니다.
+        </p>
+    @endif
+
+    <h3>세부 업종 상위</h3>
+    <div class="unit">단위 : 개</div>
+    <table class="data">
+        <thead>
+            <tr><th>업종</th><th>대분류</th><th class="num">점포 수</th><th class="num">비중</th></tr>
+        </thead>
+        <tbody>
+            @foreach ($stores['by_middle'] as $store)
+                <tr>
+                    <td>{{ $store['name'] }}</td>
+                    <td>{{ $store['large'] }}</td>
+                    <td class="num">{{ number_format($store['count']) }}</td>
+                    <td class="num">{{ number_format($store['share'], 1) }}%</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
+
 {{-- ─── 학생 · 학원 ──────────────────────────────────────────── --}}
+@if ($covered('students') || $covered('academies'))
 <div class="page-break">
     <h2>학생 수 분석</h2>
 
@@ -654,6 +833,8 @@
         @endforeach
     </div>
 </div>
+
+@endif
 
 {{-- ─── 데이터 출처 ──────────────────────────────────────────── --}}
 <div>

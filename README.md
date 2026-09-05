@@ -60,11 +60,8 @@ npm run build
 데모 계정: `demo@marketscope.test` / `demo1234` (관리자 권한)
 
 > **수록 범위**: 기본 시드에 들어 있는 행정동은 **서울특별시 424곳**입니다.
-> 전국으로 넓히려면 전국 행정동 중심점 CSV 를 `storage/app/seed/dong_center.csv` 형식
-> (`코드,시도명,시군구명,읍면동명,X(경도),Y(위도)`)으로 바꿔 넣고
-> `php artisan opendata:import regions <파일>` 또는 `php artisan db:seed --class=RegionSeeder` 를 실행하세요.
-> 경계 GeoJSON(`dong_boundary.geojson`, `properties.adm_nm` 에 전체 명칭)을 함께 두면
-> 면적과 반경 겹침이 실제 경계로 계산됩니다.
+> 다른 시도를 넣으려면 `php artisan regions:import 경기도 --download` 를 실행하세요 (3-0 참고).
+> 인증키가 필요 없고, 시도명을 생략하면 전국 3,558곳이 들어갑니다.
 
 ### 실행 방법 1 — XAMPP (Apache) 서브폴더
 
@@ -104,6 +101,45 @@ npm run dev            # 프런트엔드 개발 서버(HMR)
 ---
 
 ## 3. 공공데이터 수집
+
+### 3-0. 행정동 경계 — 모든 분석의 기준
+
+모든 통계는 행정동코드(`regions.code`, 행정안전부 8자리)로 연결됩니다.
+분석하려는 지역의 행정동과 경계 폴리곤이 먼저 들어 있어야 합니다.
+
+```bash
+php artisan regions:import 경기도 --download   # 원본 GeoJSON(약 34MB)을 받아 경기도만 적재
+php artisan regions:import 서울특별시 경기도    # 이미 받아 뒀다면 시도명만
+php artisan regions:import                     # 시도명을 생략하면 전국 3,558개 행정동
+```
+
+- 출처: [vuski/admdongkor](https://github.com/vuski/admdongkor) — 행정안전부 행정동 경계, 분기마다 갱신
+- `adm_cd2`(10자리)의 **앞 8자리**가 행정안전부 행정동코드이고, 이것이 통계 테이블의 `region_code` 입니다.
+- 면적 · 중심점 · bounding box 는 폴리곤에서 직접 계산합니다. 인증키가 필요 없습니다.
+- 34MB 파일을 통째로 `json_decode` 하면 메모리가 터지므로 피처 한 줄씩 흘려 읽습니다.
+
+### 3-0-1. 지금 어디까지 수록돼 있나
+
+행정동은 전국을 넣을 수 있지만 **통계 출처는 시도마다 다릅니다.**
+`/admin/data` 의 "시도별 수록 범위" 표가 실제 기준이며, 현재 상황은 이렇습니다.
+
+| 시도 | 행정동 | 거주인구 · 배후세대 · 직장인구 · 유동인구 · 카드매출 | 점포 · 프랜차이즈 |
+|---|---|---|---|
+| 서울특별시 | 424 | ● 서울시 상권분석서비스 (3-1) | ● 소상공인 상가정보 (3-2) |
+| 경기도 | 602 | – 행정동 단위 공개 출처 없음 | ● 소상공인 상가정보 (3-2) |
+
+경기도에서 유동인구·카드매출을 채우지 못하는 이유는 확인해 본 결과 이렇습니다.
+
+- `경기도_가맹사업_유동인구정보` — **시군구 · 연 단위** (행정동 아님)
+- `경기도_가맹사업_매출정보` — **시도 · 연 단위**
+- `경기도 발달골목상권 추정매출 현황` — **상권ID 단위**, 행정동으로 환산 불가
+- `행정안전부_행정동별(통반단위) 주민등록 인구` (data.go.kr [15108072](https://www.data.go.kr/data/15108072/openapi.do) ·
+  [15108065](https://www.data.go.kr/data/15108065/openapi.do)) — 전국 행정동 단위로 **거주인구·세대수는 채울 수 있습니다.**
+  다만 데이터셋별 활용신청(자동승인)이 필요하고, 아직 신청 전이라 미수록입니다.
+
+리포트는 미수록 항목을 **0 으로 그리지 않고 "미수록" 으로 표시**하고,
+해당 항목에 대한 분석 문장과 평균 대비 등급도 만들지 않습니다.
+수록된 통계가 하나도 없는 지역은 분석 자체를 거부합니다.
 
 ### 3-1. 서울시 상권분석서비스 — 가장 빠른 길 (권장)
 
@@ -145,9 +181,51 @@ php artisan seoul:sync card_sales --yq=20243
 
 ```bash
 php artisan opendata:key datago    # Decoding 키를 붙여넣기
+php artisan sbiz:sync-stores --sido=경기도                    # 시군구별 프로세스로 나눠 수집
+php artisan sbiz:sync-stores --sido=경기도 --skip-collected   # 중단된 지점부터 이어서
 php artisan sbiz:sync-stores --sido=서울특별시 --sigungu=강서구
 php artisan sbiz:sync-stores --dong=11500603
 ```
+
+`--sigungu` 없이 시도 전체를 부르면 시군구마다 **자식 프로세스**를 새로 띄웁니다.
+한 프로세스로 600개 행정동을 돌면 메모리가 계속 늘어 중간에 죽고,
+한 시군구가 실패해도 나머지가 멈추기 때문입니다.
+`--skip-collected` 는 이미 점포가 들어 있는 행정동을 건너뛰어 이어받기에 씁니다.
+
+### 3-2-1. 분야 · 프랜차이즈 분류
+
+점포를 모아 두는 것만으로는 "디저트 상권인가, 식당 상권인가" 를 알 수 없습니다.
+수집한 점포에 **분야**와 **프랜차이즈 브랜드**를 붙이는 단계가 따로 있습니다.
+
+```bash
+php artisan stores:classify            # 아직 분류되지 않은 점포만
+php artisan stores:classify --reset    # 처음부터 다시
+```
+
+**분야** (`App\Support\StoreSectors`) 는 표준 업종코드를 창업 관점으로 다시 묶은 것입니다.
+소분류 → 중분류 → 대분류 순으로 판별해 좁은 코드가 항상 이깁니다.
+
+> 표준 분류에서는 빵집·아이스크림이 치킨집과 같은 "기타 간이" 에 들어 있습니다.
+> 그대로 쓰면 디저트 상권이 보이지 않으므로 소분류로 갈라
+> `카페·디저트` 와 `패스트푸드·분식` 으로 나눕니다.
+
+식당 · 카페·디저트 · 패스트푸드·분식 · 주점 · 편의점·마트 · 식품 소매 ·
+패션·잡화 · 뷰티·미용 · 의료·건강 · 교육·학원 · 스포츠·여가 · 숙박 ·
+생활 서비스 · 전문 서비스 · 기타 소매
+
+**프랜차이즈 브랜드** 는 두 단계로 찾습니다.
+
+1. **사전 매칭** — `App\Support\Franchises::BRANDS` 에 등록된 표기를 상호에서 찾습니다.
+   상가정보의 상호에는 지점이 붙어 오기 때문에(`지에스25마곡`, `이디야마곡`)
+   정확히 일치시키는 방식으로는 같은 브랜드가 수백 개로 쪼개집니다.
+   표기가 갈리는 것도 한 브랜드로 모읍니다. (`파리바게뜨`/`파리바게트`, `비비큐`/`BBQ`)
+2. **데이터 매칭** — 사전에 없더라도 같은 상호가 **행정동 3곳 이상**에 반복되면 체인으로 봅니다.
+   지역 체인까지 사전에 담을 수는 없기 때문이고, 한 동네에 같은 상호가 몇 개 있다고 해서
+   프랜차이즈는 아니므로 기준을 "여러 행정동" 으로 둡니다.
+
+결과는 `stores.sector` · `stores.brand` · `stores.is_franchise` 에 저장됩니다.
+`sbiz:sync-stores` 로 새로 수집한 점포는 저장하는 순간 사전 매칭까지 끝나 있고,
+데이터 매칭(2번)은 전체를 봐야 하므로 `stores:classify` 를 한 번 더 돌려야 반영됩니다.
 
 ### 3-3. 그 밖의 공공데이터포털 오픈 API
 
@@ -249,8 +327,18 @@ php artisan opendata:import card_sales <파일.csv> --ym=20242    # 분기
 
 - 지도는 **Leaflet + OpenStreetMap** 이라 API 키가 필요 없습니다.
 - 반경 150m ~ 3km, 행정동 검색으로 이동, 기준 기간 전환
-- 패널: 포함 행정동과 겹침 비율 · 핵심 지표 · 시간대별 유동인구(평일/주말) · 카드매출과 업종 Top · 분석 문단
+- 검색창 옆 **검색 버튼**(또는 Enter)은 목록을 고르지 않아도 가장 잘 맞는 곳으로 바로 이동합니다.
+- 패널: 포함 행정동과 겹침 비율 · 핵심 지표 · 시간대별 유동인구(평일/주말) ·
+  카드매출과 업종 Top · **업종 분야와 프랜차이즈 브랜드** · 분석 문단
+- 미수록 항목은 패널에서 감춰지고, 무엇이 빠졌는지 한 줄로 알려 줍니다.
 - 미리보기는 `GET /api/regions/market` 이 담당하며 analyses 테이블에 남지 않습니다.
+
+### 새 상권분석 (`/analyses/new`)
+
+- **2. 지역 선택** — 행정동을 입력하고 **조회**(또는 Enter)를 누르면 그 위치로 지도가 이동하고
+  반경 안에 걸리는 행정동을 바로 미리 보여 줍니다. 후보가 여럿이면 목록에 남습니다.
+- **3. 리포트 정보** — 분석 이름은 선택한 지역·반경에 맞춰 자동으로 채워집니다.
+  (`마곡나루역 반경 1,000m`) 직접 고치면 그때부터 자동 생성을 멈춥니다.
 
 ---
 
@@ -262,8 +350,23 @@ php artisan opendata:import card_sales <파일.csv> --ym=20242    # 분기
 2. 인구 요약 — 거주인구 · 배후세대 · 점심/저녁 유동인구 · 직장인구 + 상위 지역 평균 비교
 3. 인구 상세 — 거주인구(성·연령), 배후세대(주거유형), 입주예정 아파트, 직장인구, 유동인구(요일·시간대)
 4. 카드매출 — 총액 · 건수 · 건당 단가, 업종별, 요일·시간대별, 성·연령별
-5. 학생 수 / 학원 수
-6. 데이터 출처
+5. 업종 분야 · 프랜차이즈 — 분야별 점포, 분야별 프랜차이즈 비중, 브랜드 목록, 세부 업종
+6. 학생 수 / 학원 수
+7. 데이터 출처
+
+프랜차이즈 브랜드 목록은 화면에서 **CSV 로 내려받을 수 있습니다**
+(`/analyses/{uuid}/franchises.csv`). 분야 · 브랜드명 · 매장 수 · 비중이 들어갑니다.
+엑셀에서 한글이 깨지지 않도록 UTF-8 BOM 을 붙여 내보냅니다.
+
+**미수록 항목 처리.** payload 의 `meta.coverage` 에 항목별 수록 여부가 들어 있습니다
+(`StatisticsRepository::coverage()`). 미수록 항목은
+
+- 요약 카드에 `—` 와 "미수록" 배지를 표시하고, 비교 그래프·표에서 아예 빼며
+- 평균 대비 등급(`levels`)을 `null` 로 두고
+- `InsightWriter` 가 그 항목의 분석 문장을 쓰지 않고
+- PDF 는 해당 장과 목차 항목을 통째로 생략합니다.
+
+0 을 사실처럼 그리지 않기 위한 장치입니다. 수록된 통계가 하나도 없으면 분석을 거부합니다.
 
 "분석 결과" 문단은 `InsightWriter` 가 집계값에서 자동으로 씁니다
 (조사 처리는 `App\Support\Korean`).
@@ -307,7 +410,9 @@ php artisan test
 
 ```
 app/
-  Console/Commands/       opendata:sync · opendata:import · seoul:sync · sbiz:sync-stores
+  Console/Commands/       regions:import · opendata:sync · opendata:import
+                          seoul:sync · sbiz:sync-stores · stores:classify
+                          opendata:key · opendata:check
   Http/Controllers/       공개 · 인증 · 분석 · 리포트 · 관리자
   Models/                 행정동 · 경계 · 통계 · 분석
   Services/
@@ -317,7 +422,10 @@ app/
                           DatasetSynchronizer · CsvImporter
     OpenData/Seoul/       SeoulOpenApiClient · SeoulSynchronizer · Transformers(가로→세로)
     OpenData/Sbiz/        StoreCollector (상가·상권정보)
+    Regions/              HangJeongDongImporter (전국 행정동 경계 GeoJSON 적재)
+    Stores/               StoreClassifier (분야 · 프랜차이즈 분류)
   Support/                Taxonomy(코드·라벨 사전) · Period(월/분기) · Korean(조사 처리)
+                          StoreSectors(분야 사전) · Franchises(브랜드 사전)
 config/
   opendata.php            엔드포인트 · 필드 매핑 · 코드 정규화 사전
   seoul.php               서울 열린데이터광장 서비스 정의
@@ -327,7 +435,7 @@ resources/views/
   layouts/                공개 사이트 · 앱 셸
   analyses/               지역 선택 · 리포트
   reports/pdf.blade.php   PDF 리포트
-storage/app/seed/         행정동 중심점 CSV · 경계 GeoJSON · 서울 API 필드 명세
+storage/app/seed/         행정동 중심점 CSV · 경계 GeoJSON(서울/전국) · 서울 API 필드 명세
 storage/fonts/            PDF 용 Pretendard (웹과 동일)
 public/images/            랜딩용 SVG 삽화 (파일 안에서 자체 애니메이션)
 ```

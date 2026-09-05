@@ -3,6 +3,7 @@
 namespace App\Services\Analysis;
 
 use App\Support\Period;
+use App\Support\StoreSectors;
 use App\Support\Taxonomy;
 use Illuminate\Support\Facades\DB;
 
@@ -339,6 +340,150 @@ class StatisticsRepository
             ->get()
             ->map(fn ($row) => (array) $row)
             ->all();
+    }
+
+    /**
+     * 지금 선택한 범위 · 기간에 실제로 수록된 통계가 무엇인지 확인한다.
+     *
+     * 수치가 0인 것과 데이터가 아예 없는 것은 전혀 다른 이야기라,
+     * 리포트가 "0명" 대신 "미수록" 이라고 말할 수 있게 이 결과를 쓴다.
+     * (예: 경기도는 행정동 · 점포는 있지만 유동인구 · 카드매출 공개 출처가 없다.)
+     *
+     * @param  array<string, float>  $weights
+     * @return array<string, bool>
+     */
+    public function coverage(array $weights, Period $period): array
+    {
+        $codes = array_keys($weights);
+
+        $tables = [
+            'resident' => 'resident_populations',
+            'households' => 'households',
+            'workplace' => 'workplace_populations',
+            'floating' => 'floating_populations',
+            'sales' => 'card_sales',
+            'students' => 'students',
+            'academies' => 'academies',
+        ];
+
+        $coverage = [];
+
+        foreach ($tables as $key => $table) {
+            $coverage[$key] = DB::table($table)
+                ->whereIn('region_code', $codes)
+                ->where($period->filterColumn(), $period->code)
+                ->exists();
+        }
+
+        // 점포는 시점 개념이 없는 스냅샷이라 기간으로 거르지 않는다.
+        $coverage['stores'] = DB::table('stores')->whereIn('region_code', $codes)->exists();
+
+        return $coverage;
+    }
+
+    /**
+     * 점포 프로필 — 분야 · 업종 · 프랜차이즈를 한 번에 집계한다.
+     *
+     * 카드매출이 없는 지역에서 상권의 성격을 읽을 수 있는 거의 유일한 실측 자료라,
+     * 분야(식당·카페/디저트 …)와 프랜차이즈 브랜드까지 함께 낸다.
+     * 반경 분석에서는 행정동 겹침 비율만큼 안분한다.
+     *
+     * @param  array<string, float>  $weights
+     */
+    public function storeProfile(array $weights, int $limit = 15): array
+    {
+        $rows = DB::table('stores')
+            ->select(
+                'region_code', 'sector', 'large_name', 'middle_name', 'brand',
+                DB::raw('COUNT(*) AS cnt')
+            )
+            ->whereIn('region_code', array_keys($weights))
+            ->groupBy('region_code', 'sector', 'large_name', 'middle_name', 'brand')
+            ->get();
+
+        $bySector = [];
+        $byLarge = [];
+        $byMiddle = [];
+        $brands = [];
+        $total = 0.0;
+        $franchiseTotal = 0.0;
+
+        foreach ($rows as $row) {
+            $weighted = $row->cnt * ($weights[$row->region_code] ?? 0);
+            $total += $weighted;
+
+            $sector = $row->sector ?: StoreSectors::UNKNOWN;
+            $large = $row->large_name ?: '기타';
+            $middle = $row->middle_name ?: $large;
+
+            $bySector[$sector] ??= ['code' => $sector, 'name' => StoreSectors::label($sector), 'count' => 0.0, 'franchises' => 0.0];
+            $bySector[$sector]['count'] += $weighted;
+
+            $byLarge[$large] ??= ['name' => $large, 'count' => 0.0];
+            $byLarge[$large]['count'] += $weighted;
+
+            $byMiddle[$middle] ??= ['name' => $middle, 'large' => $large, 'count' => 0.0];
+            $byMiddle[$middle]['count'] += $weighted;
+
+            if ($row->brand) {
+                $franchiseTotal += $weighted;
+                $bySector[$sector]['franchises'] += $weighted;
+
+                $key = $row->brand;
+                $brands[$key] ??= [
+                    'name' => $key,
+                    'sector' => $sector,
+                    'sector_name' => StoreSectors::label($sector),
+                    'count' => 0.0,
+                ];
+                $brands[$key]['count'] += $weighted;
+            }
+        }
+
+        $rank = function (array $items, ?int $take) use ($total) {
+            $items = array_map(function (array $item) use ($total) {
+                $item['count'] = (int) round($item['count']);
+                $item['share'] = $total > 0 ? round($item['count'] / $total * 100, 1) : 0.0;
+
+                if (isset($item['franchises'])) {
+                    $item['franchises'] = (int) round($item['franchises']);
+                    $item['franchise_share'] = $item['count'] > 0
+                        ? round($item['franchises'] / $item['count'] * 100, 1)
+                        : 0.0;
+                }
+
+                return $item;
+            }, array_values($items));
+
+            $items = array_values(array_filter($items, fn ($i) => $i['count'] > 0));
+            usort($items, fn ($a, $b) => $b['count'] <=> $a['count']);
+
+            return $take ? array_slice($items, 0, $take) : $items;
+        };
+
+        $sectors = $rank($bySector, null);
+
+        // 분야별 대표 브랜드 (분석서에서 "디저트는 어떤 브랜드가 많은가" 를 보게)
+        $rankedBrands = $rank($brands, null);
+        $brandsBySector = [];
+
+        foreach ($rankedBrands as $brand) {
+            $brandsBySector[$brand['sector']][] = $brand;
+        }
+
+        return [
+            'total' => (int) round($total),
+            'franchise_total' => (int) round($franchiseTotal),
+            'franchise_share' => $total > 0 ? round($franchiseTotal / $total * 100, 1) : 0.0,
+            'by_sector' => $sectors,
+            'by_large' => $rank($byLarge, $limit),
+            'by_middle' => $rank($byMiddle, $limit),
+            'brands' => array_slice($rankedBrands, 0, 40),
+            'brands_by_sector' => array_map(
+                fn (array $list) => array_slice($list, 0, 10),
+                $brandsBySector
+            ),
+        ];
     }
 
     /**

@@ -22,45 +22,55 @@ class InsightWriter
         $sidoName = $summary['sido_name'];
         $sigunguName = $summary['sigungu_name'];
         $levels = $summary['levels'];
+        // 미수록 항목은 문장을 아예 쓰지 않는다. 0명을 사실처럼 적는 것보다 낫다.
+        $has = fn (string $key) => ($summary['coverage'][$key] ?? true) === true;
         $lines = [];
 
-        $lines[] = sprintf(
-            '선택지역의 %s(보고서추출일) 기준 총 거주인구 수(추정치)는 %s명 으로 %s 평균 대비 %s 수준입니다.',
-            $reportDate,
-            number_format($selected['resident']),
-            $sidoName,
-            $levels['resident']
-        );
+        if ($has('resident')) {
+            $lines[] = sprintf(
+                '선택지역의 %s(보고서추출일) 기준 총 거주인구 수(추정치)는 %s명 으로 %s 평균 대비 %s 수준입니다.',
+                $reportDate,
+                number_format($selected['resident']),
+                $sidoName,
+                $levels['resident']
+            );
+        }
 
-        $lines[] = sprintf(
-            '배후세대는 %s 세대로 %s 평균보다 %s세대 %s %s 수준입니다.',
-            number_format($selected['households']),
-            $sidoName,
-            number_format(abs($selected['households'] - (int) round($sido['households']))),
-            $selected['households'] >= $sido['households'] ? '많은' : '적은',
-            $levels['households']
-        );
+        if ($has('households')) {
+            $lines[] = sprintf(
+                '배후세대는 %s 세대로 %s 평균보다 %s세대 %s %s 수준입니다.',
+                number_format($selected['households']),
+                $sidoName,
+                number_format(abs($selected['households'] - (int) round($sido['households']))),
+                $selected['households'] >= $sido['households'] ? '많은' : '적은',
+                $levels['households']
+            );
+        }
 
-        $lines[] = sprintf(
-            '선택지역의 점심시간 일평균 유동인구는 %s명으로 %s 평균 대비 %s 수준이며, 저녁시간 일평균 유동인구는 %s명으로 %s 평균 대비 %s 수준입니다.',
-            number_format($selected['lunch_floating']),
-            $sidoName,
-            $levels['lunch_floating'],
-            number_format($selected['evening_floating']),
-            $sidoName,
-            $levels['evening_floating']
-        );
+        if ($has('lunch_floating')) {
+            $lines[] = sprintf(
+                '선택지역의 점심시간 일평균 유동인구는 %s명으로 %s 평균 대비 %s 수준이며, 저녁시간 일평균 유동인구는 %s명으로 %s 평균 대비 %s 수준입니다.',
+                number_format($selected['lunch_floating']),
+                $sidoName,
+                $levels['lunch_floating'],
+                number_format($selected['evening_floating']),
+                $sidoName,
+                $levels['evening_floating']
+            );
+        }
 
-        $lines[] = sprintf(
-            '해당 지역의 직장인구는 %s명으로 %s 평균 대비 %s명 %s, %s 평균 대비 %s명 %s 상권으로 볼 수 있습니다.',
-            number_format($selected['workplace']),
-            $sidoName,
-            number_format(abs($selected['workplace'] - (int) round($sido['workplace']))),
-            $selected['workplace'] >= $sido['workplace'] ? '많고' : '적고',
-            $sigunguName,
-            number_format(abs($selected['workplace'] - (int) round($sigungu['workplace']))),
-            $selected['workplace'] >= $sigungu['workplace'] ? '많은' : '적은'
-        );
+        if ($has('workplace')) {
+            $lines[] = sprintf(
+                '해당 지역의 직장인구는 %s명으로 %s 평균 대비 %s명 %s, %s 평균 대비 %s명 %s 상권으로 볼 수 있습니다.',
+                number_format($selected['workplace']),
+                $sidoName,
+                number_format(abs($selected['workplace'] - (int) round($sido['workplace']))),
+                $selected['workplace'] >= $sido['workplace'] ? '많고' : '적고',
+                $sigunguName,
+                number_format(abs($selected['workplace'] - (int) round($sigungu['workplace']))),
+                $selected['workplace'] >= $sigungu['workplace'] ? '많은' : '적은'
+            );
+        }
 
         return $lines;
     }
@@ -127,6 +137,63 @@ class InsightWriter
                 '주요 소비층은 %s, 해당 구간이 전체 매출의 %s%%를 차지합니다.',
                 Korean::withJosa($segmentLabel, '으로/로'),
                 number_format($topSegment['share'], 1)
+            );
+        }
+
+        return $lines;
+    }
+
+    /**
+     * 업종 분야 · 프랜차이즈 문단.
+     * 카드매출이 없는 지역에서는 상권의 성격을 말해 주는 거의 유일한 근거다.
+     *
+     * @return array<int, string>
+     */
+    public function stores(array $stores): array
+    {
+        if (($stores['total'] ?? 0) <= 0) {
+            return [];
+        }
+
+        $lines = [];
+        $top = $stores['by_sector'][0] ?? null;
+        $second = $stores['by_sector'][1] ?? null;
+
+        if ($top) {
+            $lines[] = sprintf(
+                '선택지역에는 점포가 %s개 있고, 그중 %s %s개(%s%%)로 가장 많습니다.%s',
+                number_format($stores['total']),
+                Korean::withJosa($top['name'], '이/가'),
+                number_format($top['count']),
+                number_format($top['share'], 1),
+                $second
+                    ? sprintf(' 그다음은 %s %s개(%s%%)입니다.', Korean::withJosa($second['name'], '이/가'), number_format($second['count']), number_format($second['share'], 1))
+                    : ''
+            );
+        }
+
+        $franchiseShare = $stores['franchise_share'] ?? 0;
+
+        if (($stores['franchise_total'] ?? 0) > 0) {
+            $lines[] = sprintf(
+                '프랜차이즈로 확인된 점포는 %s개로 전체의 %s%%입니다. %s',
+                number_format($stores['franchise_total']),
+                number_format($franchiseShare, 1),
+                $franchiseShare >= 20
+                    ? '브랜드 점포 비중이 높아 이미 검증된 상권으로 볼 수 있습니다.'
+                    : '브랜드 점포 비중이 낮아 개인 점포 중심의 상권입니다.'
+            );
+        }
+
+        $topBrands = array_slice($stores['brands'] ?? [], 0, 3);
+
+        if ($topBrands !== []) {
+            $lines[] = sprintf(
+                '매장이 많은 브랜드는 %s 입니다.',
+                implode(', ', array_map(
+                    fn (array $b) => sprintf('%s(%s개·%s)', $b['name'], number_format($b['count']), $b['sector_name']),
+                    $topBrands
+                ))
             );
         }
 

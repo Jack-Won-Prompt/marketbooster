@@ -10,6 +10,8 @@ use App\Services\Analysis\StatisticsRepository;
 use App\Support\Period;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 지도 화면에서 클릭한 지점의 상권을 즉석에서 계산해 돌려준다.
@@ -61,20 +63,54 @@ class MarketPreviewController extends Controller
         return response()->json(['ok' => true, 'data' => $payload]);
     }
 
+    /** 리포트 항목별로 어느 테이블을 보는지 */
+    private const DATASETS = [
+        '거주인구' => 'resident_populations',
+        '배후세대' => 'households',
+        '직장인구' => 'workplace_populations',
+        '유동인구' => 'floating_populations',
+        '카드매출' => 'card_sales',
+        '점포' => 'stores',
+    ];
+
     /**
-     * 지금 수록된 지역 (시도별 행정동 수).
+     * 지금 수록된 지역 — 시도별 행정동 수와, 그 시도에 실제로 들어 있는 통계 종류.
+     * 시도마다 확보한 출처가 달라서 (서울은 전부, 경기는 점포만) 목록만으로는 부족하다.
      *
-     * @return array<int, array{sido:string, dongs:int}>
+     * @return array<int, array{sido:string, dongs:int, datasets:array<int, string>}>
      */
     private function coverage(): array
     {
-        return Region::query()
-            ->selectRaw('sido_name, COUNT(*) AS dongs')
-            ->groupBy('sido_name')
-            ->orderByDesc('dongs')
-            ->get()
-            ->map(fn ($row) => ['sido' => $row->sido_name, 'dongs' => (int) $row->dongs])
-            ->all();
+        return Cache::remember('map:coverage', now()->addMinutes(10), function () {
+            $sidos = Region::query()
+                ->selectRaw('sido_name, COUNT(*) AS dongs')
+                ->groupBy('sido_name')
+                ->orderByDesc('dongs')
+                ->get();
+
+            return $sidos->map(fn ($row) => [
+                'sido' => $row->sido_name,
+                'dongs' => (int) $row->dongs,
+                'datasets' => $this->datasetsForSido($row->sido_name),
+            ])->all();
+        });
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function datasetsForSido(string $sidoName): array
+    {
+        $codes = Region::where('sido_name', $sidoName)->pluck('code');
+        $found = [];
+
+        foreach (self::DATASETS as $label => $table) {
+            if (DB::table($table)->whereIn('region_code', $codes)->exists()) {
+                $found[] = $label;
+            }
+        }
+
+        return $found;
     }
 
     /**

@@ -41,6 +41,7 @@ class DataController extends Controller
         }
 
         return view('admin.data', [
+            'sidoCoverage' => $this->sidoCoverage(),
             'storeCount' => DB::table('stores')->count(),
             'seoulDatasets' => config('seoul.datasets'),
             'hasSeoulKey' => filled(config('seoul.api_key')),
@@ -50,6 +51,44 @@ class DataController extends Controller
             'hasServiceKey' => $client->hasKey(),
             'importTypes' => DatasetWriter::types(),
         ]);
+    }
+
+    /**
+     * 시도별 수록 현황. 행정동은 전국을 넣을 수 있지만 통계 출처는 시도마다 달라서
+     * "어디까지 분석이 되는가" 는 이 표를 봐야 알 수 있다.
+     *
+     * @return array<int, array{sido:string, dongs:int, boundaries:int, datasets:array<string, bool>}>
+     */
+    private function sidoCoverage(): array
+    {
+        $datasets = [
+            '거주인구' => 'resident_populations',
+            '배후세대' => 'households',
+            '직장인구' => 'workplace_populations',
+            '유동인구' => 'floating_populations',
+            '카드매출' => 'card_sales',
+            '학생·학원' => 'students',
+            '점포' => 'stores',
+        ];
+
+        return DB::table('regions')
+            ->selectRaw('sido_name, COUNT(*) AS dongs')
+            ->groupBy('sido_name')
+            ->orderByDesc('dongs')
+            ->get()
+            ->map(function ($row) use ($datasets) {
+                $codes = DB::table('regions')->where('sido_name', $row->sido_name)->pluck('code');
+
+                return [
+                    'sido' => $row->sido_name,
+                    'dongs' => (int) $row->dongs,
+                    'boundaries' => DB::table('region_boundaries')->whereIn('region_code', $codes)->count(),
+                    'datasets' => collect($datasets)
+                        ->map(fn (string $table) => DB::table($table)->whereIn('region_code', $codes)->exists())
+                        ->all(),
+                ];
+            })
+            ->all();
     }
 
     /** 가장 최근 기준 기간을 사람이 읽을 수 있는 라벨로 (분기 우선) */

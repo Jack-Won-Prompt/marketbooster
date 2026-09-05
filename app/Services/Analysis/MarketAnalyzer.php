@@ -4,6 +4,7 @@ namespace App\Services\Analysis;
 
 use App\Models\Analysis;
 use App\Models\DataSource;
+use App\Support\Korean;
 use App\Support\Period;
 use App\Support\Taxonomy;
 use Illuminate\Support\Carbon;
@@ -35,6 +36,17 @@ class MarketAnalyzer
         $weights = $this->resolver->weightMap($resolved);
         $period = $analysis->period();
         $reportDate = Carbon::now()->format('Y/m/d');
+        $coverage = $this->stats->coverage($weights, $period);
+
+        if (! in_array(true, $coverage, true)) {
+            $sidoName = $resolved->first()['region']->sido_name;
+
+            throw new \RuntimeException(sprintf(
+                '%s 행정동 경계만 수록돼 있고 %s 통계가 아직 없습니다.',
+                Korean::withJosa($sidoName, '은/는'),
+                $period->label()
+            ));
+        }
 
         $resident = $this->stats->residentByGenderAge($weights, $period);
         $households = $this->stats->householdsByType($weights, $period);
@@ -42,12 +54,13 @@ class MarketAnalyzer
         $floatingByDay = $this->stats->floatingByDayAndBand($weights, $period);
         $floatingByGenderAge = $this->stats->floatingByGenderAge($weights, $period);
 
-        $summary = $this->buildSummary($resolved, $period, $resident, $households, $workplace, $floatingByDay);
+        $summary = $this->buildSummary($resolved, $period, $resident, $households, $workplace, $floatingByDay, $coverage);
         $sales = $this->buildSales($weights, $period);
+        $stores = $this->stats->storeProfile($weights);
         $education = $this->buildEducation($weights, $period);
 
         return [
-            'meta' => $this->buildMeta($analysis, $resolved, $period),
+            'meta' => $this->buildMeta($analysis, $resolved, $period) + ['coverage' => $coverage],
             'summary' => $summary + ['insights' => $this->insights->population($summary, $reportDate)],
             'resident' => $resident,
             'households' => $households + [
@@ -59,8 +72,15 @@ class MarketAnalyzer
                 'by_gender_age' => $floatingByGenderAge,
                 'peak' => $this->peakOf($floatingByDay),
             ],
-            'sales' => $sales + ['insights' => $this->insights->sales($sales, $period->label())],
-            'education' => $education + ['insights' => $this->insights->education($education, $summary, $reportDate)],
+            'sales' => $sales + [
+                'insights' => $coverage['sales'] ? $this->insights->sales($sales, $period->label()) : [],
+            ],
+            'stores' => $stores + ['insights' => $this->insights->stores($stores)],
+            'education' => $education + [
+                'insights' => ($coverage['students'] || $coverage['academies'])
+                    ? $this->insights->education($education, $summary, $reportDate)
+                    : [],
+            ],
             'sources' => $this->buildSources(),
         ];
     }
@@ -121,7 +141,8 @@ class MarketAnalyzer
         array $resident,
         array $households,
         array $workplace,
-        array $floatingByDay
+        array $floatingByDay,
+        array $coverage
     ): array {
         $first = $resolved->first()['region'];
         $sido = $this->benchmarks->averagesForSido($first->sido_name, $period);
@@ -135,10 +156,23 @@ class MarketAnalyzer
             'workplace' => $workplace['total'],
         ];
 
+        // 요약 항목별로 어떤 원천 데이터에 기대는지. 미수록이면 등급을 매기지 않는다.
+        $sources = [
+            'resident' => 'resident',
+            'households' => 'households',
+            'lunch_floating' => 'floating',
+            'evening_floating' => 'floating',
+            'workplace' => 'workplace',
+        ];
+
+        $covered = [];
         $levels = [];
 
         foreach ($selected as $key => $value) {
-            $levels[$key] = Taxonomy::level((float) $value, (float) ($sido[$key] ?? 0));
+            $covered[$key] = (bool) ($coverage[$sources[$key]] ?? false);
+            $levels[$key] = $covered[$key]
+                ? Taxonomy::level((float) $value, (float) ($sido[$key] ?? 0))
+                : null;
         }
 
         return [
@@ -148,6 +182,7 @@ class MarketAnalyzer
             'sido_name' => $first->sido_name,
             'sigungu_name' => $first->sigungu_name,
             'levels' => $levels,
+            'coverage' => $covered,
         ];
     }
 

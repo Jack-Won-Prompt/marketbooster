@@ -4,3 +4,7 @@
 !.gitignore
 !seed/
 !seed/**
+
+# 전국 행정동 경계 원본 (34MB). php artisan regions:import --download 로 받는다.
+seed/hangjeongdong_kr.geojson
+seed/gg-search.json

@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/analyses/{analysis}/rerun', [AnalysisController::class, 'rerun'])->name('analyses.rerun');
     Route::delete('/analyses/{analysis}', [AnalysisController::class, 'destroy'])->name('analyses.destroy');
     Route::get('/analyses/{analysis}/report.pdf', [ReportController::class, 'pdf'])->name('analyses.pdf');
+    Route::get('/analyses/{analysis}/franchises.csv', [ReportController::class, 'franchises'])->name('analyses.franchises');
 
     Route::post('/favorites', [FavoriteRegionController::class, 'store'])->name('favorites.store');
     Route::delete('/favorites/{regionCode}', [FavoriteRegionController::class, 'destroy'])->name('favorites.destroy');

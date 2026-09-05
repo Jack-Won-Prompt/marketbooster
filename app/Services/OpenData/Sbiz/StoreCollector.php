@@ -4,6 +4,7 @@ namespace App\Services\OpenData\Sbiz;
 
 use App\Models\DataImportLog;
 use App\Models\Region;
+use App\Services\Stores\StoreClassifier;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -171,7 +172,14 @@ class StoreCollector
                 continue;
             }
 
-            $rows[$storeId] = [
+            $classification = StoreClassifier::forRow(
+                $item['bizesNm'] ?? null,
+                $item['indsLclsCd'] ?? null,
+                $item['indsMclsCd'] ?? null,
+                $item['indsSclsCd'] ?? null,
+            );
+
+            $rows[$storeId] = $classification + [
                 'store_id' => $storeId,
                 'name' => mb_substr((string) ($item['bizesNm'] ?? ''), 0, 200),
                 'branch_name' => mb_substr((string) ($item['brchNm'] ?? ''), 0, 120) ?: null,
@@ -204,6 +212,7 @@ class StoreCollector
                 'name', 'branch_name', 'region_code', 'sido_name', 'sigungu_name', 'dong_name',
                 'large_code', 'large_name', 'middle_code', 'middle_name', 'small_code', 'small_name',
                 'road_address', 'lot_address', 'lat', 'lng', 'collected_at', 'updated_at',
+                'sector', 'brand', 'is_franchise',
             ]);
         }
 

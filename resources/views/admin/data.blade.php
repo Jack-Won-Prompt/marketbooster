@@ -20,6 +20,48 @@
     @endunless
 
     <section class="card-pad">
+        <h2 class="text-[16px] font-extrabold text-ink-900">시도별 수록 범위</h2>
+        <p class="mt-1.5 text-[13px] leading-relaxed text-ink-500">
+            행정동 경계는 전국을 넣을 수 있지만 통계 출처는 시도마다 다릅니다.
+            어디까지 분석이 되는지는 이 표가 기준입니다.
+        </p>
+        <div class="mt-4 overflow-x-auto">
+            <table class="table-report">
+                <thead>
+                    <tr>
+                        <th>시도</th>
+                        <th class="!text-right">행정동</th>
+                        <th class="!text-right">경계</th>
+                        @foreach (array_keys($sidoCoverage[0]['datasets'] ?? []) as $label)
+                            <th class="!text-center">{{ $label }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($sidoCoverage as $row)
+                        <tr>
+                            <td class="font-semibold text-ink-900">{{ $row['sido'] }}</td>
+                            <td class="num">{{ number_format($row['dongs']) }}</td>
+                            <td class="num">{{ number_format($row['boundaries']) }}</td>
+                            @foreach ($row['datasets'] as $has)
+                                <td class="text-center">
+                                    <span class="{{ $has ? 'text-brand-600' : 'text-ink-300' }} font-bold">
+                                        {{ $has ? '●' : '–' }}
+                                    </span>
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <p class="mt-3 text-[12px] leading-relaxed text-ink-400">
+            * 새 시도를 넣으려면 <code class="rounded bg-surface-muted px-1.5 py-0.5">php artisan regions:import 경기도 --download</code> 로
+            행정동 경계를 먼저 적재한 뒤, 시도별 통계를 수집하세요.
+        </p>
+    </section>
+
+    <section class="card-pad">
         <h2 class="text-[16px] font-extrabold text-ink-900">적재 현황</h2>
         <div class="mt-4 overflow-x-auto">
             <table class="table-report">
@@ -59,6 +101,15 @@
 
             <div class="mt-4 space-y-4">
                 <div>
+                    <p class="text-[12px] font-bold text-ink-700">행정동 경계 (모든 분석의 기준)</p>
+                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan regions:import 경기도 --download</code></pre>
+                    <p class="mt-2 text-[12px] leading-relaxed text-ink-400">
+                        시도명을 여러 개 적을 수 있고, 생략하면 전국을 적재합니다.
+                        인증키가 필요 없습니다.
+                    </p>
+                </div>
+
+                <div>
                     <p class="text-[12px] font-bold text-ink-700">
                         서울시 상권분석서비스 (분기 단위)
                         <span class="ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold
@@ -80,7 +131,7 @@
                         상가(상권)정보
                         <span class="ml-1.5 text-[11px] font-normal text-ink-400">점포 {{ number_format($storeCount) }}건 적재됨</span>
                     </p>
-                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan sbiz:sync-stores --sido=서울특별시 --sigungu=강서구</code></pre>
+                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan sbiz:sync-stores --sido=경기도 --skip-collected</code></pre>
                     <p class="mt-2 text-[12px] leading-relaxed text-ink-400">
                         data.go.kr 활용신청이 필요합니다 (자동승인).
                     </p>

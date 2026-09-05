@@ -134,13 +134,17 @@
             <template x-if="coverage.length">
                 <div class="mt-3">
                     <p class="text-[12px] leading-relaxed text-amber-800">
-                        지금 수록된 지역은 아래가 전부입니다. 서울시 상권분석서비스가
-                        서울 행정동만 제공하기 때문입니다.
+                        지금 수록된 지역과 항목입니다. 유동인구 · 카드매출은 서울시 상권분석서비스가
+                        서울 행정동만 공개해 시도마다 확보한 항목이 다릅니다.
                     </p>
-                    <ul class="mt-2 flex flex-wrap gap-1.5">
+                    <ul class="mt-2 space-y-1.5">
                         <template x-for="c in coverage" :key="c.sido">
-                            <li class="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-900"
-                                x-text="`${c.sido} ${c.dongs.toLocaleString()}개 동`"></li>
+                            <li class="rounded-lg border border-amber-300 bg-white px-3 py-2">
+                                <span class="block text-[12px] font-extrabold text-ink-900"
+                                      x-text="`${c.sido} · ${c.dongs.toLocaleString()}개 동`"></span>
+                                <span class="mt-0.5 block text-[11px] text-amber-800"
+                                      x-text="c.datasets?.length ? c.datasets.join(' · ') : '행정동 경계만 수록'"></span>
+                            </li>
                         </template>
                     </ul>
                 </div>
@@ -209,10 +213,14 @@
                         </div>
                     </template>
                 </div>
+
+                <p x-show="missingLabels.length" x-cloak class="mt-3 text-[11.5px] leading-relaxed text-ink-400">
+                    <span x-text="missingLabels.join(' · ')"></span> 은(는) 이 지역에 아직 수록된 출처가 없어 빼고 계산했습니다.
+                </p>
             </div>
 
             {{-- 시간대별 유동인구 --}}
-            <div class="border-b border-line-soft px-5 py-4">
+            <div class="border-b border-line-soft px-5 py-4" x-show="covered('floating')" x-cloak>
                 <div class="flex items-baseline justify-between">
                     <p class="text-[13px] font-extrabold text-ink-900">시간대별 유동인구</p>
                     <span class="text-[11px] text-ink-300">일평균 · 명</span>
@@ -245,7 +253,7 @@
             </div>
 
             {{-- 카드매출 --}}
-            <div class="border-b border-line-soft px-5 py-4">
+            <div class="border-b border-line-soft px-5 py-4" x-show="covered('sales')" x-cloak>
                 <div class="flex items-baseline justify-between">
                     <p class="text-[13px] font-extrabold text-ink-900">카드매출</p>
                     <span class="text-[11px] text-ink-300">일평균</span>
@@ -273,6 +281,46 @@
                         </li>
                     </template>
                 </ul>
+            </div>
+
+            {{-- 업종 분야 · 프랜차이즈 --}}
+            <div class="border-b border-line-soft px-5 py-4" x-show="topSectors.length" x-cloak>
+                <div class="flex items-baseline justify-between">
+                    <p class="text-[13px] font-extrabold text-ink-900">업종 분야</p>
+                    <span class="text-[11px] text-ink-300"
+                          x-text="`점포 ${(report?.stores?.total ?? 0).toLocaleString()}개`"></span>
+                </div>
+
+                <ul class="mt-3 space-y-2">
+                    <template x-for="s in topSectors" :key="s.code">
+                        <li>
+                            <div class="flex items-center justify-between gap-3 text-[12px]">
+                                <span class="truncate font-semibold text-ink-700" x-text="s.name"></span>
+                                <span class="shrink-0 tabular-nums text-ink-400" x-text="s.share + '%'"></span>
+                            </div>
+                            <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                                <div class="h-full rounded-full bg-brand-500 transition-[width] duration-500"
+                                     :style="{ width: s.pct + '%' }"></div>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+
+                <div class="mt-4" x-show="topBrands.length" x-cloak>
+                    <div class="flex items-baseline justify-between">
+                        <p class="text-[12px] font-extrabold text-ink-900">프랜차이즈</p>
+                        <span class="text-[11px] text-ink-300"
+                              x-text="`${(report?.stores?.franchise_share ?? 0)}%`"></span>
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                        <template x-for="b in topBrands" :key="b.name">
+                            <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-2.5 py-1 text-[11px] font-semibold text-ink-600">
+                                <span x-text="b.name"></span>
+                                <span class="tabular-nums text-brand-600" x-text="b.count"></span>
+                            </span>
+                        </template>
+                    </div>
+                </div>
             </div>
 
             {{-- 분석 결과 문단 --}}
@@ -503,16 +551,21 @@ function marketMap(config) {
             const s = this.report?.summary;
             if (!s) return [];
 
-            return [
+            const cards = [
                 { key: 'resident', label: '거주 인구' },
                 { key: 'households', label: '배후세대' },
                 { key: 'lunch_floating', label: '점심 유동(일평균)' },
                 { key: 'workplace', label: '직장인구' },
-            ].map((m) => ({
-                ...m,
-                value: (s.selected[m.key] ?? 0).toLocaleString(),
-                level: `${s.sido_name} 평균 대비 ${s.levels[m.key] ?? '-'}`,
-            }));
+            ];
+
+            // 미수록 항목은 0 으로 보여 주지 않고 아예 뺀다.
+            return cards
+                .filter((m) => s.coverage?.[m.key] !== false)
+                .map((m) => ({
+                    ...m,
+                    value: (s.selected[m.key] ?? 0).toLocaleString(),
+                    level: `${s.sido_name} 평균 대비 ${s.levels[m.key] ?? '-'}`,
+                }));
         },
 
         get floatingBars() {
@@ -547,6 +600,33 @@ function marketMap(config) {
             const max = Math.max(1, ...list.map((i) => i.share));
 
             return list.slice(0, 6).map((i) => ({ ...i, pct: Math.round((i.share / max) * 100) }));
+        },
+
+        /** 이 결과에 실제로 수록된 항목인지 (예전 payload 에는 coverage 가 없어 기본은 수록) */
+        covered(key) {
+            const coverage = this.report?.meta?.coverage;
+
+            return !coverage || coverage[key] !== false;
+        },
+
+        get missingLabels() {
+            const labels = {
+                resident: '거주인구', households: '배후세대', workplace: '직장인구',
+                floating: '유동인구', sales: '카드매출',
+            };
+
+            return Object.entries(labels).filter(([key]) => !this.covered(key)).map(([, label]) => label);
+        },
+
+        get topSectors() {
+            const list = this.report?.stores?.by_sector ?? [];
+            const max = Math.max(1, ...list.map((s) => s.share));
+
+            return list.slice(0, 6).map((s) => ({ ...s, pct: Math.round((s.share / max) * 100) }));
+        },
+
+        get topBrands() {
+            return (this.report?.stores?.brands ?? []).slice(0, 10);
         },
 
         money(amount) {

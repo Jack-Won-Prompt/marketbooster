@@ -16,6 +16,9 @@ trait MakesMarketData
 {
     protected string $baseYm = '202608';
 
+    /** seedStores 를 여러 번 불러도 store_id 가 겹치지 않게 하는 호출 번호 */
+    private int $storeBatch = 0;
+
     protected function period(): Period
     {
         return Period::month($this->baseYm);
@@ -31,17 +34,18 @@ trait MakesMarketData
         float $lng,
         float $sizeDeg = 0.02,
         string $sigungu = '강서구',
+        string $sido = '서울특별시',
     ): Region {
         $half = $sizeDeg / 2;
 
         $region = Region::create([
             'code' => $code,
-            'sido_code' => '11',
-            'sido_name' => '서울특별시',
-            'sigungu_code' => '11500',
+            'sido_code' => substr($code, 0, 2),
+            'sido_name' => $sido,
+            'sigungu_code' => substr($code, 0, 5),
             'sigungu_name' => $sigungu,
             'dong_name' => $dongName,
-            'full_name' => "서울특별시 {$sigungu} {$dongName}",
+            'full_name' => "{$sido} {$sigungu} {$dongName}",
             'lat' => $lat,
             'lng' => $lng,
             'area_km2' => round(($sizeDeg * 110.574) * ($sizeDeg * 111.320 * cos(deg2rad($lat))), 4),
@@ -158,5 +162,43 @@ trait MakesMarketData
                 ]);
             }
         }
+    }
+
+    /**
+     * 점포만 있는 지역(예: 경기도)을 만들기 위한 상가 데이터.
+     * 업종코드를 넘기면 분야가 갈리는 경우까지 만들 수 있다.
+     */
+    protected function seedStores(
+        string $regionCode,
+        int $count = 5,
+        string $middleName = '한식',
+        string $largeCode = 'I2',
+        string $middleCode = 'I201',
+        string $smallCode = 'I20101',
+        ?string $brandName = null,
+    ): void {
+        $now = now();
+        $rows = [];
+        $batch = ++$this->storeBatch;
+
+        for ($i = 0; $i < $count; $i++) {
+            $name = $brandName ?? "테스트점포{$regionCode}{$batch}{$i}";
+            $classification = \App\Services\Stores\StoreClassifier::forRow($name, $largeCode, $middleCode, $smallCode);
+
+            $rows[] = $classification + [
+                'store_id' => "{$regionCode}-{$batch}-{$i}",
+                'name' => $name,
+                'region_code' => $regionCode,
+                'sido_name' => '경기도',
+                'sigungu_name' => '의정부시',
+                'dong_name' => '테스트동',
+                'large_code' => $largeCode, 'large_name' => '음식',
+                'middle_code' => $middleCode, 'middle_name' => $middleName,
+                'small_code' => $smallCode, 'small_name' => $middleName,
+                'collected_at' => $now, 'created_at' => $now, 'updated_at' => $now,
+            ];
+        }
+
+        DB::table('stores')->insert($rows);
     }
 }

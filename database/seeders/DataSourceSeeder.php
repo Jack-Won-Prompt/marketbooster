@@ -25,6 +25,8 @@ class DataSourceSeeder extends Seeder
             ['card_sales', 'sales', '카드매출', '공공데이터포털 지역별 카드매출 통계', 5],
             ['students', 'education', '학생 수', '한국교육학술정보원 학교알리미', 6],
             ['academies', 'education', '학원 수', '지방행정인허가데이터 학원교습소', 7],
+            ['stores', 'stores', '업종별 점포', '소상공인시장진흥공단 상가(상권)정보', 8],
+            ['regions', 'regions', '행정동 경계', '행정안전부 행정동 경계 (adm_cd2 기준)', 9],
         ];
 
         foreach ($rows as [$key, $category, $labelName, $provider, $order]) {

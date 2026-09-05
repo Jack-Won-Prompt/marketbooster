@@ -68,25 +68,37 @@
                 <span class="chip" x-text="mode === 'radius' ? '중심 지점을 정하세요' : '행정동을 고르세요'"></span>
             </div>
 
-            <div class="relative mt-4">
-                <input type="text" x-model="query" @input.debounce.300ms="search()" @focus="search()"
-                       class="input pl-10" placeholder="행정동 검색 (예: 가양1동, 강서구, 마곡)" autocomplete="off">
-                <svg class="pointer-events-none absolute left-3.5 top-3 h-5 w-5 text-ink-300" fill="none"
-                     stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/>
-                </svg>
+            <div class="mt-4 flex gap-2">
+                <div class="relative flex-1">
+                    <input type="text" x-model="query" @input.debounce.300ms="search()" @focus="search()"
+                           @keydown.enter.prevent="submitSearch()"
+                           class="input pl-10" placeholder="행정동 검색 (예: 가양1동, 의정부1동, 마곡)" autocomplete="off">
+                    <svg class="pointer-events-none absolute left-3.5 top-3 h-5 w-5 text-ink-300" fill="none"
+                         stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/>
+                    </svg>
 
-                <div x-show="results.length" x-cloak
-                     class="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-line bg-white shadow-lg">
-                    <template x-for="region in results" :key="region.code">
-                        <button type="button" @click="pick(region)"
-                                class="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-[14px] hover:bg-surface-muted">
-                            <span class="text-ink-700" x-text="region.full_name"></span>
-                            <span class="text-[12px] text-ink-300" x-text="region.code"></span>
-                        </button>
-                    </template>
+                    <div x-show="results.length" x-cloak
+                         class="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-line bg-white shadow-lg">
+                        <template x-for="region in results" :key="region.code">
+                            <button type="button" @click="pick(region)"
+                                    class="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-[14px] hover:bg-surface-muted">
+                                <span class="text-ink-700" x-text="region.full_name"></span>
+                                <span class="text-[12px] text-ink-300" x-text="region.code"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
+
+                {{-- 검색 버튼: 첫 번째 결과로 바로 이동한다 (목록을 고르지 않아도 되게) --}}
+                <button type="button" @click="submitSearch()" :disabled="searching"
+                        class="btn-primary shrink-0 px-5 disabled:opacity-60">
+                    <span x-show="!searching">조회</span>
+                    <span x-show="searching" x-cloak>…</span>
+                </button>
             </div>
+
+            <p x-show="searchError" x-cloak class="mt-2 text-[12px] font-semibold text-amber-700" x-text="searchError"></p>
 
             {{-- 지도 (Leaflet + OpenStreetMap — 별도 키가 필요 없다) --}}
             <div class="mt-4" x-show="mode === 'radius'" x-cloak>
@@ -158,8 +170,12 @@
 
             <div class="mt-4">
                 <label class="label" for="title">분석 이름</label>
-                <input id="title" name="title" x-model="title" required maxlength="120" class="input"
+                <input id="title" name="title" x-model="title" @input="titleTouched = true"
+                       required maxlength="120" class="input"
                        placeholder="예) 마곡나루역 반경 1km">
+                <p x-show="!titleTouched && title" x-cloak class="mt-1.5 text-[12px] text-ink-400">
+                    선택한 지역으로 자동으로 채웠습니다. 직접 고쳐도 됩니다.
+                </p>
             </div>
 
             <div class="mt-4">
@@ -255,17 +271,49 @@ function analysisForm(config) {
         address: @js(old('address', '')),
         query: '',
         results: [],
+        searching: false,
+        searchError: '',
         selected: [],
         preview: [],
         loading: false,
+        // 사용자가 이름을 직접 고치면 그때부터 자동 생성을 멈춘다.
+        titleTouched: @js(old('title', '') !== ''),
         map: null,
         marker: null,
         circle: null,
+        nearestName: '',
 
         // Alpine 이 컴포넌트를 붙일 때 init() 을 자동으로 부른다. x-init 으로 또 부르면 지도가 두 번 만들어진다.
         init() {
             this.$nextTick(() => this.initMap());
             this.refreshPreview();
+            this.applyAutoTitle();
+        },
+
+        /**
+         * 분석 이름을 지금 선택 상태에 맞춰 채운다.
+         * 사용자가 직접 고친 뒤에는 건드리지 않는다.
+         */
+        applyAutoTitle() {
+            if (this.titleTouched) return;
+
+            this.title = this.autoTitle();
+        },
+
+        autoTitle() {
+            if (this.mode === 'region') {
+                if (!this.selected.length) return '';
+
+                const first = this.selected[0].full_name;
+
+                return this.selected.length > 1
+                    ? `${first} 외 ${this.selected.length - 1}곳 상권분석`
+                    : `${first} 상권분석`;
+            }
+
+            const where = this.address || this.nearestName || '선택 지점';
+
+            return `${where} 반경 ${this.radius.toLocaleString()}m`;
         },
 
         get selectedCodes() {
@@ -299,6 +347,7 @@ function analysisForm(config) {
                 this.address = '';
                 this.syncMap();
                 this.refreshPreview();
+                this.applyAutoTitle();
             });
 
             // 숨겨져 있다 나타나면 타일이 잘리므로 크기를 다시 잡는다.
@@ -318,22 +367,27 @@ function analysisForm(config) {
         setMode(mode) {
             this.mode = mode;
             this.results = [];
+            this.searchError = '';
             // 숨겨져 있던 지도가 다시 보이면 타일이 잘리므로 크기를 다시 잡는다.
             if (mode === 'radius') this.$nextTick(() => this.map?.invalidateSize());
             this.refreshPreview();
+            this.applyAutoTitle();
         },
 
         setRadius(value) {
             this.radius = value;
             this.syncMap();
             this.refreshPreview();
+            this.applyAutoTitle();
         },
 
         async search() {
             const keyword = this.query.trim();
+            this.searchError = '';
+
             if (keyword.length < 1) {
                 this.results = [];
-                return;
+                return [];
             }
 
             const response = await fetch(`${config.searchUrl}?q=${encodeURIComponent(keyword)}`, {
@@ -341,28 +395,60 @@ function analysisForm(config) {
             });
             const json = await response.json();
             this.results = json.data ?? [];
+
+            return this.results;
+        },
+
+        /**
+         * 조회 버튼 / Enter — 목록을 고르지 않아도 가장 잘 맞는 곳으로 바로 이동한다.
+         * 후보가 더 있으면 목록에 남겨 다른 곳을 고를 수 있게 한다.
+         */
+        async submitSearch() {
+            if (this.searching) return;
+
+            this.searching = true;
+
+            try {
+                const found = await this.search();
+
+                if (!found.length) {
+                    this.searchError = '검색 결과가 없습니다. 행정동·시군구 이름으로 찾아보세요.';
+                    return;
+                }
+
+                const rest = found.slice(1);
+                this.pick(found[0]);
+                this.results = rest;
+            } finally {
+                this.searching = false;
+            }
         },
 
         pick(region) {
             this.results = [];
-            this.query = '';
+            this.searchError = '';
 
             if (this.mode === 'radius') {
+                this.query = region.full_name;
                 this.center = { lat: Number(region.lat), lng: Number(region.lng) };
                 this.address = region.full_name;
-                if (!this.title) this.title = `${region.full_name} 반경 ${this.radius.toLocaleString()}m`;
                 this.syncMap();
                 this.refreshPreview();
+                this.applyAutoTitle();
                 return;
             }
 
+            this.query = '';
+
             if (this.selected.some((item) => item.code === region.code)) return;
+
             this.selected.push(region);
-            if (!this.title) this.title = `${region.full_name} 상권분석`;
+            this.applyAutoTitle();
         },
 
         remove(code) {
             this.selected = this.selected.filter((region) => region.code !== code);
+            this.applyAutoTitle();
         },
 
         async refreshPreview() {
@@ -384,6 +470,12 @@ function analysisForm(config) {
                 });
                 const json = await response.json();
                 this.preview = json.data ?? [];
+
+                // 지도를 직접 찍었을 때 이름에 쓸 대표 행정동
+                if (!this.address) {
+                    this.nearestName = this.preview[0]?.name ?? '';
+                    this.applyAutoTitle();
+                }
             } catch (error) {
                 this.preview = [];
             } finally {

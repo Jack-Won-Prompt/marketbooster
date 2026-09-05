@@ -5,6 +5,12 @@
 
     $meta = $report['meta'] ?? [];
     $summary = $report['summary'] ?? [];
+
+    // 이 범위·기간에 실제로 수록된 통계. 예전에 만든 리포트에는 없으므로 없으면 모두 수록으로 본다.
+    $coverage = $meta['coverage'] ?? [];
+    $covered = fn (string $key) => ($coverage[$key] ?? true) === true;
+    $noSource = ($meta['sido_name'] ?? '이 지역').' 은(는) 아직 이 항목을 행정동 단위로 공개하는 출처를 확보하지 못했습니다.';
+
     $money = fn ($amount) => $amount >= 100000000
         ? number_format($amount / 100000000, 1).'억'
         : ($amount >= 10000 ? number_format($amount / 10000).'만' : number_format($amount));
@@ -103,16 +109,34 @@
 
         <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             @foreach ($summaryMetrics as $key => $label)
+                @php $hasMetric = ($summary['coverage'][$key] ?? true) === true; @endphp
                 <div class="rounded-xl border border-line-soft p-4">
                     <p class="text-[12px] font-semibold text-ink-400">{{ $label }}</p>
-                    <p class="stat-value mt-1.5">{{ number_format($summary['selected'][$key]) }}</p>
-                    <p class="mt-2 inline-flex rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">
-                        {{ $meta['sido_name'] }} 평균 대비 {{ $summary['levels'][$key] }}
-                    </p>
+                    @if ($hasMetric)
+                        <p class="stat-value mt-1.5">{{ number_format($summary['selected'][$key]) }}</p>
+                        <p class="mt-2 inline-flex rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">
+                            {{ $meta['sido_name'] }} 평균 대비 {{ $summary['levels'][$key] }}
+                        </p>
+                    @else
+                        <p class="stat-value mt-1.5 text-ink-300">—</p>
+                        <p class="mt-2 inline-flex rounded-full bg-ink-50 px-2.5 py-1 text-[11px] font-bold text-ink-400">
+                            미수록
+                        </p>
+                    @endif
                 </div>
             @endforeach
         </div>
 
+        @php
+            // 비교 그래프·표에는 수록된 항목만 올린다. 미수록을 0 으로 그리면 비교가 거짓말이 된다.
+            $summaryMetrics = array_filter(
+                $summaryMetrics,
+                fn ($key) => ($summary['coverage'][$key] ?? true) === true,
+                ARRAY_FILTER_USE_KEY
+            );
+        @endphp
+
+        @if ($summaryMetrics)
         <div class="mt-6 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
             <div class="rounded-xl border border-line-soft p-4">
                 <div class="h-[280px]">
@@ -167,6 +191,7 @@
                 </p>
             </div>
         </div>
+        @endif
 
         @include('analyses.partials.insights', ['lines' => $summary['insights'] ?? []])
     </section>
@@ -181,19 +206,26 @@
             <p class="mt-1 text-[12px] text-ink-400">
                 * 주민등록인구 수와 배후세대 분포를 활용해 해당 지역에 거주하는 인구를 추정한 값입니다.
             </p>
-            <div class="mt-4">
-                @include('analyses.partials.gender-age', [
-                    'data' => $report['resident'],
-                    'chartId' => 'chart-resident',
-                    'unit' => '명',
-                ])
-            </div>
+            @if ($covered('resident'))
+                <div class="mt-4">
+                    @include('analyses.partials.gender-age', [
+                        'data' => $report['resident'],
+                        'chartId' => 'chart-resident',
+                        'unit' => '명',
+                    ])
+                </div>
+            @else
+                @include('analyses.partials.uncovered', ['reason' => $noSource])
+            @endif
         </div>
 
         {{-- 배후세대 --}}
         <div class="mt-10 border-t border-line-soft pt-8">
             <h3 class="text-[15px] font-extrabold text-ink-900">배후세대</h3>
 
+            @if (! $covered('households'))
+                @include('analyses.partials.uncovered', ['reason' => $noSource])
+            @else
             <div class="mt-4 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
                 <div class="rounded-xl border border-line-soft p-4">
                     <div class="h-[240px]">
@@ -271,6 +303,7 @@
                     </table>
                 @endif
             </div>
+            @endif
         </div>
 
         {{-- 직장인구 --}}
@@ -279,14 +312,18 @@
             <p class="mt-1 text-[12px] text-ink-400">
                 * 사업체 조사를 기반으로 주거건물을 제외한 건물의 면적과 층수를 고려해 산정한 값입니다.
             </p>
-            <div class="mt-4">
-                @include('analyses.partials.gender-age', [
-                    'data' => $report['workplace'],
-                    'ageBands' => Taxonomy::WORK_AGE_BANDS,
-                    'chartId' => 'chart-workplace',
-                    'unit' => '명',
-                ])
-            </div>
+            @if ($covered('workplace'))
+                <div class="mt-4">
+                    @include('analyses.partials.gender-age', [
+                        'data' => $report['workplace'],
+                        'ageBands' => Taxonomy::WORK_AGE_BANDS,
+                        'chartId' => 'chart-workplace',
+                        'unit' => '명',
+                    ])
+                </div>
+            @else
+                @include('analyses.partials.uncovered', ['reason' => $noSource])
+            @endif
         </div>
 
         {{-- 유동인구 --}}
@@ -297,6 +334,9 @@
                 * 오전 6:00-10:59 | 점심 11:00-14:59 | 오후 15:00-17:59 | 저녁 18:00-20:59 | 밤 21:00-05:59
             </p>
 
+            @if (! $covered('floating'))
+                @include('analyses.partials.uncovered', ['reason' => $noSource])
+            @else
             <div class="mt-4 rounded-xl border border-line-soft p-4">
                 <div class="h-[280px]">
                     @php
@@ -346,6 +386,7 @@
                     ])
                 </div>
             </div>
+            @endif
         </div>
     </section>
 
@@ -354,6 +395,9 @@
         <p class="eyebrow">03</p>
         <h2 class="mt-2 text-[20px] font-extrabold text-ink-900">카드매출 분석</h2>
 
+        @if (! $covered('sales'))
+            @include('analyses.partials.uncovered', ['reason' => $noSource])
+        @else
         <div class="mt-5 grid gap-3 sm:grid-cols-3">
             @foreach ([
                 ['일평균 카드매출', $money($report['sales']['total_amount']).'원'],
@@ -441,11 +485,178 @@
         </div>
 
         @include('analyses.partials.insights', ['lines' => $report['sales']['insights'] ?? []])
+        @endif
+    </section>
+
+    {{-- ─── 업종 분야 · 프랜차이즈 ───────────────────────────── --}}
+    <section class="card-pad">
+        <p class="eyebrow">04</p>
+        <h2 class="mt-2 text-[20px] font-extrabold text-ink-900">업종 분야 · 프랜차이즈</h2>
+        <p class="mt-1 text-[12px] text-ink-400">
+            * 소상공인시장진흥공단 상가(상권)정보의 실제 점포를 분야와 브랜드로 분류한 값입니다.
+            반경 분석은 겹치는 면적 비율을 적용합니다.
+        </p>
+
+        @if (! $covered('stores'))
+            @include('analyses.partials.uncovered', [
+                'reason' => '이 범위의 점포 정보를 아직 수집하지 않았습니다. php artisan sbiz:sync-stores 로 수집할 수 있습니다.',
+            ])
+        @else
+            @php $stores = $report['stores']; @endphp
+
+            <div class="mt-5 grid gap-3 sm:grid-cols-4">
+                @foreach ([
+                    ['전체 점포', number_format($stores['total']).'개'],
+                    ['프랜차이즈', number_format($stores['franchise_total'] ?? 0).'개'],
+                    ['프랜차이즈 비중', number_format($stores['franchise_share'] ?? 0, 1).'%'],
+                    ['최다 분야', ($stores['by_sector'][0]['name'] ?? '-')],
+                ] as [$label, $value])
+                    <div class="rounded-xl border border-line-soft p-4">
+                        <p class="text-[12px] font-semibold text-ink-400">{{ $label }}</p>
+                        <p class="stat-value mt-1.5">{{ $value }}</p>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- 분야별 구성 --}}
+            <div class="mt-7 grid gap-6 lg:grid-cols-[1fr_1fr]">
+                <div>
+                    <h3 class="text-[15px] font-extrabold text-ink-900">분야별 점포</h3>
+                    <div class="mt-4 rounded-xl border border-line-soft p-4">
+                        <div class="h-[300px]">
+                            @php
+                                $sectorConfig = [
+                                    'labels' => array_column($stores['by_sector'], 'name'),
+                                    'datasets' => [[
+                                        'label' => '점포 수',
+                                        'data' => array_column($stores['by_sector'], 'count'),
+                                        'color' => '#0593ff',
+                                    ]],
+                                ];
+                            @endphp
+                            <canvas data-chart="bar" data-chart-config='@json($sectorConfig)'></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[15px] font-extrabold text-ink-900">분야별 프랜차이즈 비중</h3>
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="table-report">
+                            <thead>
+                                <tr>
+                                    <th>분야</th>
+                                    <th class="!text-right">점포</th>
+                                    <th class="!text-right">비중</th>
+                                    <th class="!text-right">프랜차이즈</th>
+                                    <th class="!text-right">프랜차이즈율</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($stores['by_sector'] as $sector)
+                                    <tr>
+                                        <td class="font-semibold text-ink-900">{{ $sector['name'] }}</td>
+                                        <td class="num">{{ number_format($sector['count']) }}</td>
+                                        <td class="num text-ink-400">{{ number_format($sector['share'], 1) }}%</td>
+                                        <td class="num">{{ number_format($sector['franchises'] ?? 0) }}</td>
+                                        <td class="num font-bold text-brand-600">
+                                            {{ number_format($sector['franchise_share'] ?? 0, 1) }}%
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {{-- 프랜차이즈 브랜드 --}}
+            <div class="mt-10 border-t border-line-soft pt-8">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-[15px] font-extrabold text-ink-900">프랜차이즈 브랜드</h3>
+                        <p class="mt-1 text-[12px] text-ink-400">
+                            분야별로 매장 수가 많은 브랜드입니다. 전체 목록은 CSV 로 내려받을 수 있습니다.
+                        </p>
+                    </div>
+                    <a href="{{ route('analyses.franchises', $analysis) }}" class="btn-ghost btn-sm">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14"/>
+                        </svg>
+                        브랜드 목록 CSV
+                    </a>
+                </div>
+
+                @if (empty($stores['brands']))
+                    <p class="mt-4 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-400">
+                        이 범위에서 프랜차이즈로 확인된 점포가 없습니다.
+                    </p>
+                @else
+                    <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        @foreach ($stores['by_sector'] as $sector)
+                            @php $sectorBrands = $stores['brands_by_sector'][$sector['code']] ?? []; @endphp
+                            @continue(empty($sectorBrands))
+                            <div class="rounded-xl border border-line-soft p-4">
+                                <div class="flex items-baseline justify-between gap-2">
+                                    <p class="text-[13px] font-extrabold text-ink-900">{{ $sector['name'] }}</p>
+                                    <p class="text-[11px] font-semibold text-ink-400">브랜드 {{ count($sectorBrands) }}</p>
+                                </div>
+                                <ul class="mt-3 space-y-2">
+                                    @foreach ($sectorBrands as $brand)
+                                        <li>
+                                            <div class="flex items-center justify-between gap-3">
+                                                <span class="truncate text-[13px] font-semibold text-ink-700">{{ $brand['name'] }}</span>
+                                                <span class="shrink-0 text-[12px] font-bold tabular-nums text-brand-600">
+                                                    {{ number_format($brand['count']) }}개
+                                                </span>
+                                            </div>
+                                            <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted">
+                                                <div class="h-full rounded-full bg-brand-500"
+                                                     style="width: {{ max(4, round($brand['count'] / max(1, $sectorBrands[0]['count']) * 100)) }}%"></div>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            {{-- 세부 업종 --}}
+            <div class="mt-10 border-t border-line-soft pt-8">
+                <h3 class="text-[15px] font-extrabold text-ink-900">세부 업종 상위</h3>
+                <div class="mt-4 overflow-x-auto">
+                    <table class="table-report">
+                        <thead>
+                            <tr>
+                                <th>업종</th>
+                                <th>대분류</th>
+                                <th class="!text-right">점포 수</th>
+                                <th class="!text-right">비중</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($stores['by_middle'] as $store)
+                                <tr>
+                                    <td class="font-semibold text-ink-900">{{ $store['name'] }}</td>
+                                    <td class="text-ink-400">{{ $store['large'] }}</td>
+                                    <td class="num">{{ number_format($store['count']) }}</td>
+                                    <td class="num text-ink-400">{{ number_format($store['share'], 1) }}%</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @include('analyses.partials.insights', ['lines' => $stores['insights'] ?? []])
+        @endif
     </section>
 
     {{-- ─── 학생 · 학원 ──────────────────────────────────────── --}}
     <section class="card-pad">
-        <p class="eyebrow">04</p>
+        <p class="eyebrow">05</p>
         <h2 class="mt-2 text-[20px] font-extrabold text-ink-900">학생 수 분석</h2>
 
         <div class="mt-5 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
@@ -533,7 +744,7 @@
 
     {{-- ─── 데이터 출처 ──────────────────────────────────────── --}}
     <section class="card-pad">
-        <p class="eyebrow">05</p>
+        <p class="eyebrow">06</p>
         <h2 class="mt-2 text-[20px] font-extrabold text-ink-900">데이터 출처</h2>
 
         <table class="table-report mt-5">
