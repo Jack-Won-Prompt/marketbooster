@@ -6,6 +6,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', '워크스페이스') · {{ config('app.name') }}</title>
 
+    {{-- 스크립트가 살아 있을 때만 스크롤 등장 효과를 켠다 (JS 실패 시 본문이 숨지 않도록) --}}
+    <script>document.documentElement.classList.add('js-reveal');</script>
+
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="stylesheet"

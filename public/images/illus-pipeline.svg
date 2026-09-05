@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200"
+     role="img" aria-label="공공데이터가 정규화를 거쳐 데이터베이스로 적재되는 흐름">
+  <style>
+    .flow  { stroke-dasharray: 5 11; animation: flow 2.4s linear infinite; }
+    .flow-b { animation-duration: 3s } .flow-c { animation-duration: 2s }
+    .packet { animation: travel 3.6s cubic-bezier(.4,0,.6,1) infinite; }
+    .p2 { animation-delay: 1.2s } .p3 { animation-delay: 2.4s }
+    .gear { animation: spin 8s linear infinite; transform-origin: 160px 100px; }
+    .db   { animation: pulse 3.6s ease-in-out infinite; transform-origin: 268px 100px; }
+    @keyframes flow   { to { stroke-dashoffset: -32 } }
+    @keyframes travel { 0% { transform: translateX(0); opacity: 0 } 12% { opacity: 1 }
+                        88% { opacity: 1 } 100% { transform: translateX(196px); opacity: 0 } }
+    @keyframes spin   { to { transform: rotate(360deg) } }
+    @keyframes pulse  { 0%,100% { transform: scale(1) } 50% { transform: scale(1.06) } }
+    @media (prefers-reduced-motion: reduce) { .flow,.packet,.gear,.db { animation: none } .packet { opacity: 1 } }
+  </style>
+
+  <rect width="320" height="200" rx="14" fill="#f6f8fa"/>
+
+  <!-- 출처 카드 -->
+  <g>
+    <rect x="18" y="42" width="66" height="30" rx="8" fill="#ffffff" stroke="#d8e1ef"/>
+    <rect x="27" y="53" width="30" height="5" rx="2.5" fill="#0593ff" opacity=".6"/>
+    <rect x="27" y="62" width="44" height="4" rx="2" fill="#c8d3e0"/>
+
+    <rect x="18" y="84" width="66" height="30" rx="8" fill="#ffffff" stroke="#d8e1ef"/>
+    <rect x="27" y="95" width="38" height="5" rx="2.5" fill="#00c6ff" opacity=".7"/>
+    <rect x="27" y="104" width="30" height="4" rx="2" fill="#c8d3e0"/>
+
+    <rect x="18" y="126" width="66" height="30" rx="8" fill="#ffffff" stroke="#d8e1ef"/>
+    <rect x="27" y="137" width="34" height="5" rx="2.5" fill="#09e092" opacity=".8"/>
+    <rect x="27" y="146" width="40" height="4" rx="2" fill="#c8d3e0"/>
+  </g>
+
+  <!-- 연결선 -->
+  <g fill="none" stroke="#bfd4e8" stroke-width="2" stroke-linecap="round">
+    <path class="flow"        d="M84 57  C 112 57, 116 100, 136 100"/>
+    <path class="flow flow-b" d="M84 99  H136"/>
+    <path class="flow flow-c" d="M84 141 C 112 141, 116 100, 136 100"/>
+    <path class="flow"        d="M186 100 H240"/>
+  </g>
+
+  <!-- 이동하는 데이터 패킷 -->
+  <g>
+    <circle class="packet"    cx="88" cy="100" r="3.5" fill="#0593ff"/>
+    <circle class="packet p2" cx="88" cy="100" r="3.5" fill="#00c6ff"/>
+    <circle class="packet p3" cx="88" cy="100" r="3.5" fill="#09e092"/>
+  </g>
+
+  <!-- 정규화 -->
+  <circle cx="160" cy="100" r="26" fill="#ffffff" stroke="#0593ff" stroke-width="2"/>
+  <g class="gear" fill="none" stroke="#0593ff" stroke-width="2" stroke-linecap="round">
+    <circle cx="160" cy="100" r="8"/>
+    <path d="M160 84 v-5 M160 121 v-5 M144 100 h-5 M181 100 h-5
+             M148.7 88.7 l-3.5 -3.5 M174.8 114.8 l-3.5 -3.5
+             M171.3 88.7 l3.5 -3.5 M145.2 114.8 l3.5 -3.5"/>
+  </g>
+
+  <!-- 데이터베이스 -->
+  <g class="db">
+    <ellipse cx="268" cy="72" rx="30" ry="10" fill="#ffffff" stroke="#0593ff" stroke-width="2"/>
+    <path d="M238 72 v56 c0 5.5 13.4 10 30 10s30-4.5 30-10 V72" fill="#ffffff" stroke="#0593ff" stroke-width="2"/>
+    <path d="M238 94 c0 5.5 13.4 10 30 10s30-4.5 30-10" fill="none" stroke="#0593ff" stroke-width="2" opacity=".5"/>
+    <path d="M238 114 c0 5.5 13.4 10 30 10s30-4.5 30-10" fill="none" stroke="#0593ff" stroke-width="2" opacity=".5"/>
+  </g>
+
+  <g font-family="system-ui, sans-serif" font-size="9.5" fill="#7b8394" text-anchor="middle">
+    <text x="51" y="176">공공데이터</text>
+    <text x="160" y="176">정규화</text>
+    <text x="268" y="176">적재</text>
+  </g>
+</svg>

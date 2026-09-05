@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380"
+     role="img" aria-label="완성된 상권분석 리포트와 PDF 내려받기 버튼">
+  <style>
+    .card { animation: up 4.5s cubic-bezier(.22,.61,.36,1) infinite }
+    .c2 { animation-delay: .1s } .c3 { animation-delay: .2s } .c4 { animation-delay: .3s }
+    .bar { transform-origin: 0 100%; animation: grow 4.5s cubic-bezier(.22,.61,.36,1) infinite }
+    .g2 { animation-delay: .08s } .g3 { animation-delay: .16s } .g4 { animation-delay: .24s }
+    .g5 { animation-delay: .32s } .g6 { animation-delay: .4s }
+    .dl { animation: nudge 4.5s ease-in-out infinite }
+    .arrow { animation: arrow 1.8s ease-in-out infinite }
+    @keyframes up    { 0%,6% { transform: translateY(10px); opacity: 0 } 26%,100% { transform: translateY(0); opacity: 1 } }
+    @keyframes grow  { 0%,20% { transform: scaleY(.05) } 48%,100% { transform: scaleY(1) } }
+    @keyframes nudge { 0%,70% { transform: scale(1) } 78% { transform: scale(1.05) } 86%,100% { transform: scale(1) } }
+    @keyframes arrow { 0%,100% { transform: translateY(0) } 50% { transform: translateY(2.5px) } }
+    @media (prefers-reduced-motion: reduce) {
+      .card,.bar,.dl,.arrow { animation: none } .card { opacity: 1 } .bar { transform: scaleY(1) }
+    }
+  </style>
+
+  <rect width="560" height="380" rx="16" fill="#ffffff" stroke="#e6ecf4"/>
+  <path d="M0 66 H560" stroke="#eef2f9" stroke-width="2"/>
+
+  <text x="30" y="34" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#100f14">마곡나루역 반경 1km</text>
+  <text x="30" y="52" font-family="system-ui, sans-serif" font-size="11" fill="#7b8394">서울특별시 강서구 · 2026년 8월 기준 · 행정동 3곳</text>
+
+  <g class="dl">
+    <rect x="432" y="24" width="100" height="30" rx="8" fill="#100f14"/>
+    <g class="arrow" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M452 34 v9 M448 39 l4 4 4 -4"/>
+    </g>
+    <text x="464" y="44" font-family="system-ui, sans-serif" font-size="11.5" font-weight="700" fill="#ffffff">PDF 저장</text>
+  </g>
+
+  <!-- 요약 카드 -->
+  <g font-family="system-ui, sans-serif">
+    <g class="card">
+      <rect x="30" y="86" width="118" height="70" rx="10" fill="#ffffff" stroke="#eef2f9"/>
+      <text x="44" y="108" font-size="10" fill="#7b8394">거주 인구</text>
+      <text x="44" y="132" font-size="18" font-weight="700" fill="#100f14">23,015</text>
+      <rect x="44" y="140" width="60" height="10" rx="5" fill="#eaf4ff"/>
+    </g>
+    <g class="card c2">
+      <rect x="158" y="86" width="118" height="70" rx="10" fill="#ffffff" stroke="#eef2f9"/>
+      <text x="172" y="108" font-size="10" fill="#7b8394">배후세대</text>
+      <text x="172" y="132" font-size="18" font-weight="700" fill="#100f14">9,266</text>
+      <rect x="172" y="140" width="52" height="10" rx="5" fill="#eef0ff"/>
+    </g>
+    <g class="card c3">
+      <rect x="286" y="86" width="118" height="70" rx="10" fill="#ffffff" stroke="#eef2f9"/>
+      <text x="300" y="108" font-size="10" fill="#7b8394">점심 유동</text>
+      <text x="300" y="132" font-size="18" font-weight="700" fill="#100f14">45,499</text>
+      <rect x="300" y="140" width="66" height="10" rx="5" fill="#e6f8ff"/>
+    </g>
+    <g class="card c4">
+      <rect x="414" y="86" width="118" height="70" rx="10" fill="#ffffff" stroke="#eef2f9"/>
+      <text x="428" y="108" font-size="10" fill="#7b8394">월 카드매출</text>
+      <text x="428" y="132" font-size="18" font-weight="700" fill="#100f14">26.3억</text>
+      <rect x="428" y="140" width="58" height="10" rx="5" fill="#e8fbf3"/>
+    </g>
+  </g>
+
+  <!-- 차트 -->
+  <rect x="30" y="172" width="304" height="176" rx="12" fill="#ffffff" stroke="#eef2f9"/>
+  <g stroke="#f1f4f9" stroke-width="1.5">
+    <path d="M56 216 H310"/><path d="M56 252 H310"/><path d="M56 288 H310"/>
+  </g>
+  <g transform="translate(60 320)">
+    <rect class="bar"    x="0"   y="-56" width="22" height="56" rx="4" fill="#0593ff"/>
+    <rect class="bar g2" x="26"  y="-52" width="22" height="52" rx="4" fill="#f2557b"/>
+    <rect class="bar g3" x="62"  y="-92" width="22" height="92" rx="4" fill="#0593ff"/>
+    <rect class="bar g4" x="88"  y="-86" width="22" height="86" rx="4" fill="#f2557b"/>
+    <rect class="bar g5" x="124" y="-108" width="22" height="108" rx="4" fill="#0593ff"/>
+    <rect class="bar g6" x="150" y="-114" width="22" height="114" rx="4" fill="#f2557b"/>
+    <rect class="bar g3" x="186" y="-74" width="22" height="74" rx="4" fill="#0593ff"/>
+    <rect class="bar g4" x="212" y="-70" width="22" height="70" rx="4" fill="#f2557b"/>
+    <path d="M-6 4 H244" stroke="#e6ecf4" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- 표 -->
+  <rect x="348" y="172" width="184" height="176" rx="12" fill="#ffffff" stroke="#eef2f9"/>
+  <rect x="348" y="172" width="184" height="30" rx="12" fill="#f6f8fa"/>
+  <rect x="348" y="192" width="184" height="10" fill="#f6f8fa"/>
+  <g fill="#c3ccd8">
+    <rect x="364" y="183" width="40" height="7" rx="3.5"/>
+    <rect x="428" y="183" width="34" height="7" rx="3.5"/>
+    <rect x="478" y="183" width="34" height="7" rx="3.5"/>
+  </g>
+  <g fill="#e4e9f0">
+    <rect x="364" y="216" width="46" height="7" rx="3.5"/><rect x="432" y="216" width="30" height="7" rx="3.5"/><rect x="482" y="216" width="30" height="7" rx="3.5"/>
+    <rect x="364" y="242" width="38" height="7" rx="3.5"/><rect x="432" y="242" width="30" height="7" rx="3.5"/><rect x="482" y="242" width="30" height="7" rx="3.5"/>
+    <rect x="364" y="268" width="52" height="7" rx="3.5"/><rect x="432" y="268" width="30" height="7" rx="3.5"/><rect x="482" y="268" width="30" height="7" rx="3.5"/>
+    <rect x="364" y="294" width="42" height="7" rx="3.5"/><rect x="432" y="294" width="30" height="7" rx="3.5"/><rect x="482" y="294" width="30" height="7" rx="3.5"/>
+  </g>
+  <rect x="348" y="314" width="184" height="34" rx="0" fill="#f6f8fa"/>
+  <g fill="#b6c0cd">
+    <rect x="364" y="327" width="34" height="8" rx="4"/><rect x="428" y="327" width="34" height="8" rx="4"/><rect x="478" y="327" width="34" height="8" rx="4"/>
+  </g>
+</svg>

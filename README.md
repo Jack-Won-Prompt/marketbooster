@@ -229,7 +229,26 @@ resources/views/
   reports/pdf.blade.php   PDF 리포트
 storage/app/seed/         행정동 중심점 CSV · 경계 GeoJSON
 storage/fonts/            PDF 용 나눔고딕
+public/images/            랜딩용 SVG 삽화 (파일 안에서 자체 애니메이션)
 ```
+
+### 랜딩 페이지의 이미지와 모션
+
+삽화는 모두 브랜드 팔레트로 직접 그린 SVG이고, 파일 안에 CSS 애니메이션이 들어 있어
+`<img>` 로 불러도 움직입니다. 외부 이미지 호스트에 의존하지 않습니다.
+
+스크롤 인터랙션은 `resources/js/motion.js` 가 담당합니다.
+
+| 속성 | 동작 |
+|---|---|
+| `data-reveal` | 화면에 들어오면 나타남 (`left` · `right` · `zoom`) |
+| `data-reveal-stagger="80"` | 자식들을 순서대로 등장 |
+| `data-count-to="45499"` | 0에서 그 값까지 세어 올림 |
+| `data-parallax="0.06"` | 스크롤에 따라 살짝 어긋나게 이동 |
+
+`prefers-reduced-motion` 을 켠 사용자에게는 모든 움직임이 멈추고 최종 상태만 보입니다.
+숨김 상태는 `<html class="js-reveal">` 이 있을 때만 적용되므로, 스크립트가 막혀도
+본문이 사라지지 않습니다.
 
 ### 함께 담긴 공개 자료
 

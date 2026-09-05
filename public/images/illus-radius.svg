@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200"
+     role="img" aria-label="행정동 경계 위에 분석 반경이 겹치는 모습">
+  <style>
+    .sweep { animation: sweep 5s cubic-bezier(.45,0,.55,1) infinite; transform-origin: 158px 104px; }
+    .halo  { animation: halo 3s ease-out infinite; transform-origin: 158px 104px; }
+    .hit   { animation: hit 5s ease-in-out infinite; }
+    .hit-b { animation-delay: .5s } .hit-c { animation-delay: 1s }
+    @keyframes sweep { 0%,100% { transform: scale(.62) } 50% { transform: scale(1) } }
+    @keyframes halo  { 0% { transform: scale(.5); opacity: .55 } 100% { transform: scale(1.15); opacity: 0 } }
+    @keyframes hit   { 0%,100% { opacity: .16 } 50% { opacity: .5 } }
+    @media (prefers-reduced-motion: reduce) { .sweep,.halo,.hit { animation: none } .halo { opacity: 0 } }
+  </style>
+
+  <rect width="320" height="200" rx="14" fill="#f6f8fa"/>
+
+  <!-- 행정동 폴리곤 -->
+  <g stroke="#c8d3e0" stroke-width="1.6" fill="#ffffff">
+    <path d="M32 24 L128 18 L142 84 L60 96 Z"/>
+    <path d="M128 18 L236 30 L226 96 L142 84 Z"/>
+    <path d="M236 30 L296 44 L290 112 L226 96 Z"/>
+    <path d="M60 96 L142 84 L150 166 L54 176 Z"/>
+    <path d="M142 84 L226 96 L216 170 L150 166 Z"/>
+    <path d="M226 96 L290 112 L282 178 L216 170 Z"/>
+  </g>
+
+  <!-- 반경에 걸린 부분 -->
+  <g fill="#0593ff">
+    <path class="hit"   d="M128 18 L236 30 L226 96 L142 84 Z"/>
+    <path class="hit hit-b" d="M60 96 L142 84 L150 166 L54 176 Z"/>
+    <path class="hit hit-c" d="M142 84 L226 96 L216 170 L150 166 Z"/>
+  </g>
+
+  <!-- 분석 반경 -->
+  <g class="sweep">
+    <circle cx="158" cy="104" r="76" fill="#0593ff" fill-opacity=".1"
+            stroke="#0593ff" stroke-width="2.4" stroke-dasharray="6 8"/>
+  </g>
+  <circle class="halo" cx="158" cy="104" r="76" fill="none" stroke="#00c6ff" stroke-width="2"/>
+
+  <path d="M158 82 c-9.4 0-17 7.6-17 17 0 12.2 17 29 17 29s17-16.8 17-29c0-9.4-7.6-17-17-17z" fill="#0593ff"/>
+  <circle cx="158" cy="99" r="6" fill="#ffffff"/>
+
+  <!-- 겹침 비율 라벨 -->
+  <g font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#0e6ae0">
+    <rect x="186" y="42" width="34" height="17" rx="8.5" fill="#ffffff" stroke="#d8e1ef"/>
+    <text x="192" y="54">42%</text>
+    <rect x="70" y="132" width="34" height="17" rx="8.5" fill="#ffffff" stroke="#d8e1ef"/>
+    <text x="76" y="144">42%</text>
+    <rect x="228" y="140" width="30" height="17" rx="8.5" fill="#ffffff" stroke="#d8e1ef"/>
+    <text x="234" y="152">3%</text>
+  </g>
+</svg>

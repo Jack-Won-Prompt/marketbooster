@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380"
+     role="img" aria-label="지도에서 중심을 찍고 반경을 고르는 지역 선택 화면">
+  <style>
+    .caret { animation: blink 1.2s steps(1) infinite }
+    .typed { animation: type 5s steps(1) infinite }
+    .t2 { animation-delay: .5s } .t3 { animation-delay: 1s }
+    .pick { animation: pick 5s ease-in-out infinite }
+    .rad  { animation: rad 5s cubic-bezier(.22,.61,.36,1) infinite; transform-origin: 396px 214px }
+    @keyframes blink { 0%,49% { opacity: 1 } 50%,100% { opacity: 0 } }
+    @keyframes type  { 0%,14% { opacity: 0 } 20%,100% { opacity: 1 } }
+    @keyframes pick  { 0%,55% { opacity: 0 } 62%,100% { opacity: 1 } }
+    @keyframes rad   { 0%,58% { transform: scale(.55) } 72%,100% { transform: scale(1) } }
+    @media (prefers-reduced-motion: reduce) {
+      .caret,.typed,.pick,.rad { animation: none } .typed,.pick { opacity: 1 } .rad { transform: scale(1) }
+    }
+  </style>
+
+  <rect width="560" height="380" rx="16" fill="#ffffff" stroke="#e6ecf4"/>
+  <path d="M0 44 H560" stroke="#eef2f9" stroke-width="2"/>
+  <g fill="#dfe6ef"><circle cx="26" cy="22" r="5"/><circle cx="44" cy="22" r="5"/><circle cx="62" cy="22" r="5"/></g>
+  <rect x="86" y="14" width="150" height="16" rx="8" fill="#f2f5f9"/>
+
+  <!-- 검색 -->
+  <rect x="26" y="66" width="240" height="36" rx="9" fill="#ffffff" stroke="#0593ff" stroke-width="1.8"/>
+  <circle cx="46" cy="84" r="6" fill="none" stroke="#a4acbb" stroke-width="2"/>
+  <path d="M50.5 88.5 L55 93" stroke="#a4acbb" stroke-width="2" stroke-linecap="round"/>
+  <text class="typed" x="64" y="89" font-family="system-ui, sans-serif" font-size="13" fill="#100f14">마곡나루역</text>
+  <rect class="caret" x="140" y="76" width="1.6" height="17" fill="#0593ff"/>
+
+  <!-- 자동완성 -->
+  <g class="typed t2">
+    <rect x="26" y="108" width="240" height="70" rx="10" fill="#ffffff" stroke="#e6ecf4"/>
+    <rect x="40" y="122" width="128" height="8" rx="4" fill="#cfd8e3"/>
+    <rect x="40" y="144" width="150" height="8" rx="4" fill="#cfd8e3"/>
+    <rect x="40" y="162" width="112" height="8" rx="4" fill="#eef2f9"/>
+  </g>
+
+  <!-- 반경 버튼 -->
+  <g class="typed t3">
+    <rect x="26" y="196" width="52" height="26" rx="13" fill="#ffffff" stroke="#e0e6ee"/>
+    <rect x="86" y="196" width="52" height="26" rx="13" fill="#ffffff" stroke="#e0e6ee"/>
+    <rect x="146" y="196" width="62" height="26" rx="13" fill="#eaf4ff" stroke="#0593ff" stroke-width="1.6"/>
+    <text x="160" y="213" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#0e6ae0">1,000m</text>
+    <rect x="216" y="196" width="52" height="26" rx="13" fill="#ffffff" stroke="#e0e6ee"/>
+  </g>
+
+  <!-- 겹침 미리보기 -->
+  <g class="pick">
+    <rect x="26" y="242" width="242" height="112" rx="10" fill="#f6f8fa"/>
+    <rect x="42" y="258" width="112" height="7" rx="3.5" fill="#8f9bab"/>
+    <rect x="42" y="272" width="180" height="6" rx="3" fill="#0593ff"/>
+    <rect x="222" y="272" width="30" height="6" rx="3" fill="#dbe3ec"/>
+    <rect x="42" y="292" width="104" height="7" rx="3.5" fill="#8f9bab"/>
+    <rect x="42" y="306" width="176" height="6" rx="3" fill="#0593ff"/>
+    <rect x="218" y="306" width="34" height="6" rx="3" fill="#dbe3ec"/>
+    <rect x="42" y="326" width="96" height="7" rx="3.5" fill="#8f9bab"/>
+    <rect x="42" y="340" width="16" height="6" rx="3" fill="#0593ff"/>
+    <rect x="58" y="340" width="194" height="6" rx="3" fill="#dbe3ec"/>
+  </g>
+
+  <!-- 지도 -->
+  <g>
+    <rect x="286" y="66" width="248" height="288" rx="12" fill="#eef2f7"/>
+    <g stroke="#ffffff" stroke-width="7" stroke-linecap="round">
+      <path d="M286 150 H534"/><path d="M286 262 H534"/><path d="M370 66 V354"/><path d="M456 66 V354"/>
+    </g>
+    <g fill="#e2e8f0">
+      <rect x="300" y="82"  width="58" height="52" rx="5"/>
+      <rect x="384" y="82"  width="58" height="52" rx="5"/>
+      <rect x="470" y="82"  width="52" height="52" rx="5"/>
+      <rect x="300" y="166" width="58" height="82" rx="5"/>
+      <rect x="384" y="166" width="58" height="82" rx="5"/>
+      <rect x="470" y="166" width="52" height="82" rx="5"/>
+      <rect x="300" y="278" width="58" height="62" rx="5"/>
+      <rect x="384" y="278" width="58" height="62" rx="5"/>
+      <rect x="470" y="278" width="52" height="62" rx="5"/>
+    </g>
+    <g class="rad">
+      <circle cx="396" cy="214" r="92" fill="#0593ff" fill-opacity=".12"
+              stroke="#0593ff" stroke-width="2.4" stroke-dasharray="6 8"/>
+    </g>
+    <path d="M396 190 c-10.4 0-19 8.6-19 19 0 13.6 19 32 19 32s19-18.4 19-32c0-10.4-8.6-19-19-19z" fill="#0593ff"/>
+    <circle cx="396" cy="209" r="6.6" fill="#ffffff"/>
+  </g>
+</svg>

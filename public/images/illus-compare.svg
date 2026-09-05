@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200"
+     role="img" aria-label="선택지역과 시도·시군구 평균을 나란히 비교하는 막대 차트">
+  <style>
+    .g   { transform-origin: 0 100%; animation: rise 4s cubic-bezier(.22,.61,.36,1) infinite; }
+    .d1 { animation-delay: .06s } .d2 { animation-delay: .14s } .d3 { animation-delay: .22s }
+    .d4 { animation-delay: .3s }  .d5 { animation-delay: .38s } .d6 { animation-delay: .46s }
+    .badge { animation: pop 4s ease-in-out infinite; transform-origin: 250px 44px; }
+    @keyframes rise { 0%,6% { transform: scaleY(.05) } 40%,74% { transform: scaleY(1) } 100% { transform: scaleY(.05) } }
+    @keyframes pop  { 0%,30% { transform: scale(.2); opacity: 0 } 48%,74% { transform: scale(1); opacity: 1 }
+                      100% { transform: scale(.2); opacity: 0 } }
+    @media (prefers-reduced-motion: reduce) { .g,.badge { animation: none } .badge { opacity: 1 } }
+  </style>
+
+  <rect width="320" height="200" rx="14" fill="#f6f8fa"/>
+
+  <g stroke="#e6ecf4" stroke-width="1.5">
+    <path d="M34 44 H286"/><path d="M34 80 H286"/><path d="M34 116 H286"/>
+  </g>
+  <path d="M34 152 H286" stroke="#c8d3e0" stroke-width="2" stroke-linecap="round"/>
+
+  <g transform="translate(34 152)">
+    <g transform="translate(18 0)">
+      <rect class="g d1" x="0"  y="-104" width="16" height="104" rx="4" fill="#0593ff"/>
+      <rect class="g d2" x="20" y="-70"  width="16" height="70"  rx="4" fill="#a4acbb"/>
+      <rect class="g d3" x="40" y="-58"  width="16" height="58"  rx="4" fill="#c8d3e0"/>
+    </g>
+    <g transform="translate(132 0)">
+      <rect class="g d4" x="0"  y="-78" width="16" height="78" rx="4" fill="#0593ff"/>
+      <rect class="g d5" x="20" y="-92" width="16" height="92" rx="4" fill="#a4acbb"/>
+      <rect class="g d6" x="40" y="-86" width="16" height="86" rx="4" fill="#c8d3e0"/>
+    </g>
+  </g>
+
+  <g class="badge">
+    <rect x="212" y="30" width="76" height="28" rx="14" fill="#ffffff" stroke="#bfe0ff"/>
+    <circle cx="230" cy="44" r="7" fill="#eaf4ff"/>
+    <path d="M227 46 l3 3 5-7" stroke="#0593ff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="242" y="48" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#0e6ae0">매우 높음</text>
+  </g>
+
+  <g font-family="system-ui, sans-serif" font-size="9.5" fill="#7b8394">
+    <circle cx="40" cy="180" r="4" fill="#0593ff"/><text x="49" y="184">선택지역</text>
+    <circle cx="110" cy="180" r="4" fill="#a4acbb"/><text x="119" y="184">시도 평균</text>
+    <circle cx="188" cy="180" r="4" fill="#c8d3e0"/><text x="197" y="184">시군구 평균</text>
+  </g>
+</svg>

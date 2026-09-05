@@ -1,4 +1,5 @@
 import './bootstrap';
+import './motion';
 
 import Alpine from 'alpinejs';
 import {

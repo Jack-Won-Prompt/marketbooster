@@ -7,6 +7,9 @@
     <title>@yield('title', '상권분석 플랫폼') · {{ config('app.name') }}</title>
     <meta name="description" content="@yield('description', '공공데이터 기반 유동인구·카드매출 상권분석 리포트를 몇 초 만에 받아보세요.')">
 
+    {{-- 스크립트가 살아 있을 때만 스크롤 등장 효과를 켠다 (JS 실패 시 본문이 숨지 않도록) --}}
+    <script>document.documentElement.classList.add('js-reveal');</script>
+
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="stylesheet"

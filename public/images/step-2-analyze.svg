@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380"
+     role="img" aria-label="선택한 범위의 통계를 면적 비율로 안분해 집계하는 과정">
+  <style>
+    .fill  { animation: fill 4s cubic-bezier(.4,0,.2,1) infinite }
+    .f2 { animation-delay: .35s } .f3 { animation-delay: .7s } .f4 { animation-delay: 1.05s } .f5 { animation-delay: 1.4s }
+    .tick  { animation: tick 4s ease-in-out infinite }
+    .k2 { animation-delay: .35s } .k3 { animation-delay: .7s } .k4 { animation-delay: 1.05s } .k5 { animation-delay: 1.4s }
+    .spin  { animation: spin 1.6s linear infinite; transform-origin: 280px 44px }
+    .drop  { animation: drop 4s ease-in-out infinite }
+    .d2 { animation-delay: .6s } .d3 { animation-delay: 1.2s }
+    @keyframes fill { 0%,4% { width: 0 } 46%,100% { width: var(--w) } }
+    @keyframes tick { 0%,44% { opacity: 0; transform: scale(.3) } 56%,100% { opacity: 1; transform: scale(1) } }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    @keyframes drop { 0% { transform: translateY(-10px); opacity: 0 } 20% { opacity: 1 }
+                      70% { transform: translateY(96px); opacity: 1 } 100% { transform: translateY(110px); opacity: 0 } }
+    @media (prefers-reduced-motion: reduce) {
+      .fill,.tick,.spin,.drop { animation: none } .fill { width: var(--w) } .tick { opacity: 1 } .drop { opacity: 1 }
+    }
+  </style>
+
+  <rect width="560" height="380" rx="16" fill="#ffffff" stroke="#e6ecf4"/>
+  <path d="M0 76 H560" stroke="#eef2f9" stroke-width="2"/>
+
+  <text x="30" y="36" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#100f14">집계 중</text>
+  <text x="30" y="58" font-family="system-ui, sans-serif" font-size="11.5" fill="#7b8394">겹친 면적 비율만큼 통계를 안분합니다</text>
+  <g class="spin" fill="none" stroke="#0593ff" stroke-width="3" stroke-linecap="round">
+    <circle cx="280" cy="44" r="0"/>
+  </g>
+  <circle cx="514" cy="38" r="14" fill="none" stroke="#e6ecf4" stroke-width="3"/>
+  <path class="spin" d="M514 24 a14 14 0 0 1 14 14" fill="none" stroke="#0593ff" stroke-width="3" stroke-linecap="round"
+        style="transform-origin:514px 38px"/>
+
+  <!-- 지표 진행 막대 -->
+  <g font-family="system-ui, sans-serif" font-size="11.5" fill="#5a6274">
+    <g transform="translate(30 108)">
+      <text y="0">거주 인구(추정)</text>
+      <rect x="0" y="10" width="380" height="8" rx="4" fill="#eef2f7"/>
+      <rect class="fill" x="0" y="10" height="8" rx="4" fill="#0593ff" style="--w:380px"/>
+      <g class="tick" transform="translate(404 8)">
+        <circle cx="7" cy="7" r="7" fill="#eaf4ff"/>
+        <path d="M4 7.5 l2.4 2.4 4.6 -5.4" stroke="#0593ff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <text x="432" y="14" font-weight="700" fill="#100f14">23,015</text>
+    </g>
+
+    <g transform="translate(30 152)">
+      <text y="0">배후세대</text>
+      <rect x="0" y="10" width="380" height="8" rx="4" fill="#eef2f7"/>
+      <rect class="fill f2" x="0" y="10" height="8" rx="4" fill="#405ff5" style="--w:296px"/>
+      <g class="tick k2" transform="translate(404 8)">
+        <circle cx="7" cy="7" r="7" fill="#eef0ff"/>
+        <path d="M4 7.5 l2.4 2.4 4.6 -5.4" stroke="#405ff5" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <text x="432" y="14" font-weight="700" fill="#100f14">9,266</text>
+    </g>
+
+    <g transform="translate(30 196)">
+      <text y="0">유동인구</text>
+      <rect x="0" y="10" width="380" height="8" rx="4" fill="#eef2f7"/>
+      <rect class="fill f3" x="0" y="10" height="8" rx="4" fill="#00c6ff" style="--w:348px"/>
+      <g class="tick k3" transform="translate(404 8)">
+        <circle cx="7" cy="7" r="7" fill="#e6f8ff"/>
+        <path d="M4 7.5 l2.4 2.4 4.6 -5.4" stroke="#00a3c4" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <text x="432" y="14" font-weight="700" fill="#100f14">45,499</text>
+    </g>
+
+    <g transform="translate(30 240)">
+      <text y="0">카드매출</text>
+      <rect x="0" y="10" width="380" height="8" rx="4" fill="#eef2f7"/>
+      <rect class="fill f4" x="0" y="10" height="8" rx="4" fill="#09e092" style="--w:262px"/>
+      <g class="tick k4" transform="translate(404 8)">
+        <circle cx="7" cy="7" r="7" fill="#e8fbf3"/>
+        <path d="M4 7.5 l2.4 2.4 4.6 -5.4" stroke="#09b878" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <text x="432" y="14" font-weight="700" fill="#100f14">26.3억</text>
+    </g>
+
+    <g transform="translate(30 284)">
+      <text y="0">학생 · 학원</text>
+      <rect x="0" y="10" width="380" height="8" rx="4" fill="#eef2f7"/>
+      <rect class="fill f5" x="0" y="10" height="8" rx="4" fill="#5b8ede" style="--w:196px"/>
+      <g class="tick k5" transform="translate(404 8)">
+        <circle cx="7" cy="7" r="7" fill="#edf2fb"/>
+        <path d="M4 7.5 l2.4 2.4 4.6 -5.4" stroke="#5b8ede" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <text x="432" y="14" font-weight="700" fill="#100f14">1,961</text>
+    </g>
+  </g>
+
+  <!-- 흘러 들어오는 데이터 -->
+  <g opacity=".85">
+    <rect class="drop"    x="118" y="330" width="26" height="7" rx="3.5" fill="#0593ff"/>
+    <rect class="drop d2" x="268" y="330" width="26" height="7" rx="3.5" fill="#00c6ff"/>
+    <rect class="drop d3" x="404" y="330" width="26" height="7" rx="3.5" fill="#09e092"/>
+  </g>
+</svg>
