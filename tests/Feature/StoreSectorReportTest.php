@@ -39,6 +39,28 @@ class StoreSectorReportTest extends TestCase
         $this->seedStores($code, 3, '기타 간이', 'I2', 'I210', 'I21006', '교촌치킨 테스트점');
     }
 
+    public function test_이름이_확인되지_않은_상호는_브랜드_목록에_넣지_않는다(): void
+    {
+        $this->makeRegion('41150510', '의정부1동', 37.50, 127.00, sigungu: '의정부시', sido: '경기도');
+        $this->seedMixedStores('41150510');
+
+        // 데이터로만 찾은 다점포 상호 (분류기가 붙이는 상태를 그대로 만든다)
+        $this->seedStores('41150510', 4, '한식', 'I2', 'I201', 'I20101', '입주청소');
+        \Illuminate\Support\Facades\DB::table('stores')
+            ->where('name', '입주청소')
+            ->update(['brand' => '입주청소', 'brand_source' => 'chain', 'is_franchise' => false]);
+
+        $stores = app(MarketAnalyzer::class)->analyze($this->analysis())['stores'];
+
+        $names = array_column($stores['brands'], 'name');
+
+        $this->assertContains('스타벅스', $names);
+        $this->assertNotContains('입주청소', $names);
+
+        // 개수로는 남는다. 체인화 정도는 뜻이 있기 때문이다.
+        $this->assertGreaterThan(0, $stores['chain_total']);
+    }
+
     public function test_분야별로_점포를_나눈다(): void
     {
         $this->makeRegion('41150510', '의정부1동', 37.50, 127.00, sigungu: '의정부시', sido: '경기도');

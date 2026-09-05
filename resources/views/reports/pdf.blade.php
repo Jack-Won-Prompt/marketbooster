@@ -762,19 +762,18 @@
     <h2>프랜차이즈 브랜드</h2>
 
     @if (empty($stores['brands']))
-        <p class="muted">이 범위에서 프랜차이즈로 확인된 점포가 없습니다.</p>
+        <p class="muted">이 범위에서 이름이 확인된 프랜차이즈가 없습니다. 등록된 브랜드 사전에 없는 지역 브랜드일 수 있습니다.</p>
     @else
         <div class="unit">단위 : 개</div>
         <table class="data">
             <thead>
-                <tr><th>분야</th><th>브랜드</th><th>구분</th><th class="num">매장 수</th><th class="num">전체 대비</th></tr>
+                <tr><th>분야</th><th>브랜드</th><th class="num">매장 수</th><th class="num">전체 대비</th></tr>
             </thead>
             <tbody>
                 @foreach ($stores['brands'] as $brand)
                     <tr>
                         <td>{{ $brand['sector_name'] }}</td>
                         <td>{{ $brand['name'] }}</td>
-                        <td>{{ $brand['source_label'] ?? '프랜차이즈' }}</td>
                         <td class="num">{{ number_format($brand['count']) }}</td>
                         <td class="num">{{ number_format($brand['share'], 1) }}%</td>
                     </tr>
@@ -783,8 +782,9 @@
         </table>
 
         <p class="muted">
-            * 프랜차이즈는 등록된 브랜드에서 이름까지 확인한 것으로, 표기가 달라도 하나로 묶었습니다.<br>
-            * 다점포 상호는 사전에 없지만 여러 행정동에 반복되는 상호(지역 체인)입니다.
+            * 등록된 브랜드 사전에서 이름까지 확인한 프랜차이즈만 실었습니다. 표기가 달라도 하나로 묶었습니다.<br>
+            * 사전에 없는 상호를 반복 출현으로 찾은 다점포 상호 {{ number_format($stores['chain_total'] ?? 0) }}개는
+            이름을 믿기 어려워 개수로만 표시합니다.
         </p>
     @endif
 

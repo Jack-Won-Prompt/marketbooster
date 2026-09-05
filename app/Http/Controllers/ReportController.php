@@ -109,15 +109,14 @@ class ReportController extends Controller
             fputcsv($out, ['기준', $analysis->payload['meta']['base_label'] ?? '-']);
             fputcsv($out, ['전체 점포', $stores['total'] ?? 0]);
             fputcsv($out, ['프랜차이즈 점포', $stores['franchise_total'] ?? 0]);
-            fputcsv($out, ['다점포 상호 점포', $stores['chain_total'] ?? 0]);
+            fputcsv($out, ['다점포 상호 점포(이름 미확인)', $stores['chain_total'] ?? 0]);
             fputcsv($out, []);
-            fputcsv($out, ['분야', '브랜드', '구분', '매장 수', '전체 대비 비중(%)']);
+            fputcsv($out, ['분야', '브랜드', '매장 수', '전체 대비 비중(%)']);
 
             foreach ($brands as $brand) {
                 fputcsv($out, [
                     $brand['sector_name'] ?? '',
                     $brand['name'] ?? '',
-                    $brand['source_label'] ?? '프랜차이즈',
                     $brand['count'] ?? 0,
                     $brand['share'] ?? 0,
                 ]);

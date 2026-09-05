@@ -588,8 +588,9 @@
                         <h3 class="text-[15px] font-extrabold text-ink-900">프랜차이즈 브랜드</h3>
                         <p class="mt-1 text-[12px] leading-relaxed text-ink-400">
                             분야별로 매장 수가 많은 브랜드입니다. 전체 목록은 CSV 로 내려받을 수 있습니다.<br>
-                            <span class="font-semibold text-brand-600">프랜차이즈</span>는 등록된 브랜드에서 이름까지 확인한 것이고,
-                            <span class="font-semibold text-ink-500">다점포 상호</span>는 여러 행정동에 반복되는 상호(지역 체인)입니다.
+                            이름이 확인된 프랜차이즈만 싣습니다. 사전에 없는 상호를 반복 출현으로 찾은
+                            <strong>다점포 상호 {{ number_format($stores['chain_total'] ?? 0) }}개</strong>는
+                            이름을 믿기 어려워 개수로만 표시합니다.
                         </p>
                     </div>
                     <a href="{{ route('analyses.franchises', $analysis) }}" class="btn-ghost btn-sm">
@@ -601,8 +602,9 @@
                 </div>
 
                 @if (empty($stores['brands']))
-                    <p class="mt-4 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-400">
-                        이 범위에서 프랜차이즈로 확인된 점포가 없습니다.
+                    <p class="mt-4 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] leading-relaxed text-ink-400">
+                        이 범위에서 이름이 확인된 프랜차이즈가 없습니다.<br>
+                        등록된 브랜드 사전에 없는 지역 브랜드일 수 있습니다.
                     </p>
                 @else
                     <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -618,12 +620,7 @@
                                     @foreach ($sectorBrands as $brand)
                                         <li>
                                             <div class="flex items-center justify-between gap-3">
-                                                <span class="flex min-w-0 items-center gap-1.5">
-                                                    <span class="truncate text-[13px] font-semibold text-ink-700">{{ $brand['name'] }}</span>
-                                                    @if (($brand['source'] ?? 'franchise') === 'chain')
-                                                        <span class="shrink-0 rounded bg-ink-50 px-1.5 py-0.5 text-[10px] font-bold text-ink-400">체인</span>
-                                                    @endif
-                                                </span>
+                                                <span class="truncate text-[13px] font-semibold text-ink-700">{{ $brand['name'] }}</span>
                                                 <span class="shrink-0 text-[12px] font-bold tabular-nums text-brand-600">
                                                     {{ number_format($brand['count']) }}개
                                                 </span>

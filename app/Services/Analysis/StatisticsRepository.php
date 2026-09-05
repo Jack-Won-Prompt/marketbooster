@@ -450,10 +450,12 @@ class StatisticsRepository
      * 분야(식당·카페/디저트 …)와 브랜드까지 함께 낸다.
      * 반경 분석에서는 행정동 겹침 비율만큼 안분한다.
      *
-     * 브랜드는 두 종류를 구분한다.
-     *   프랜차이즈  — 등록된 사전에서 이름까지 확인한 것
-     *   다점포 상호 — 사전에 없지만 여러 행정동에 반복되는 상호 (지역 체인)
-     * 섞어서 "프랜차이즈"라고 부르면 "입주청소" 같은 일반 명사까지 브랜드가 된다.
+     * 브랜드 목록에는 **이름이 확인된 프랜차이즈만** 싣는다.
+     *
+     * 사전에 없는 상호를 데이터로 찾은 "다점포 상호" 는 개수로만 낸다.
+     * 실제로 뽑아 보면 "입주청소" · "삼성공인중개사사무소" 처럼 흔한 말이
+     * 상위를 차지해 브랜드 목록으로는 쓸 수 없었다.
+     * 체인화 정도(개수)는 뜻이 있지만 이름은 믿을 수 없어서다.
      *
      * @param  array<string, float>  $weights
      */
@@ -511,11 +513,13 @@ class StatisticsRepository
                 $chainTotal += $weighted;
             }
 
+            if (! $isFranchise) {
+                continue;
+            }
+
             $key = $row->brand;
             $brands[$key] ??= [
                 'name' => $key,
-                'source' => $isFranchise ? 'franchise' : 'chain',
-                'source_label' => $isFranchise ? '프랜차이즈' : '다점포 상호',
                 'count' => 0.0,
                 // 같은 브랜드가 여러 업종으로 흩어져 들어오므로 가장 많은 쪽을 대표로 삼는다.
                 'sector_counts' => [],

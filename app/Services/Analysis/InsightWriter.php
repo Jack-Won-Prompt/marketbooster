@@ -172,29 +172,22 @@ class InsightWriter
             );
         }
 
-        $franchiseShare = $stores['franchise_share'] ?? 0;
-
+        /*
+         * "프랜차이즈 비중이 낮으니 개인 점포 상권" 같은 판단은 쓰지 않는다.
+         * 이 수치는 등록된 브랜드 사전에 있는 것만 세므로, 낮게 나오는 이유가
+         * 상권 성격 때문인지 사전이 좁아서인지 구분할 수 없다.
+         * 셀 수 있는 것만 적고 판단은 읽는 사람에게 맡긴다.
+         */
         if (($stores['franchise_total'] ?? 0) > 0) {
             $lines[] = sprintf(
-                '이름이 확인된 프랜차이즈 점포는 %s개로 전체의 %s%%이고, 여러 동네에 반복되는 다점포 상호가 %s개 더 있습니다. %s',
+                '이름이 확인된 프랜차이즈 점포는 %s개(전체의 %s%%)이고, 여러 동네에 반복되지만 이름을 확인하지 못한 상호가 %s개 더 있습니다.',
                 number_format($stores['franchise_total']),
-                number_format($franchiseShare, 1),
-                number_format($stores['chain_total'] ?? 0),
-                $franchiseShare >= 8
-                    ? '브랜드 점포 비중이 높아 이미 검증된 상권으로 볼 수 있습니다.'
-                    : '브랜드 점포 비중이 낮아 개인 점포 중심의 상권입니다.'
+                number_format($stores['franchise_share'] ?? 0, 1),
+                number_format($stores['chain_total'] ?? 0)
             );
         }
 
-        // 이름이 확실한 프랜차이즈만 문장에 쓴다. 다점포 상호에는 일반 명사가 섞인다.
-        $topBrands = array_slice(
-            array_values(array_filter(
-                $stores['brands'] ?? [],
-                fn (array $b) => ($b['source'] ?? 'franchise') === 'franchise'
-            )),
-            0,
-            3
-        );
+        $topBrands = array_slice($stores['brands'] ?? [], 0, 3);
 
         if ($topBrands !== []) {
             $lines[] = sprintf(
