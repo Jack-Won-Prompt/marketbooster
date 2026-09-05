@@ -121,8 +121,12 @@ npm run dev            # 프런트엔드 개발 서버(HMR)
 | 거주인구 · 배후세대 | `VwsmAdstrdRepopW` | [OA-22183 상주인구-행정동](https://data.seoul.go.kr/dataList/OA-22183/S/1/datasetView.do) |
 | 직장인구 | `VwsmAdstrdWrcPopltnW` | [OA-22184 직장인구-행정동](https://data.seoul.go.kr/dataList/OA-22184/S/1/datasetView.do) |
 
-```dotenv
-SEOUL_OPENAPI_KEY=발급받은_일반_인증키
+발급받은 키는 `.env` 를 직접 고치지 말고 커맨드로 넣으면 형식이 깨질 일이 없습니다.
+
+```bash
+php artisan opendata:key seoul     # 붙여넣기 (화면에 표시되지 않음)
+php artisan opendata:key datago
+php artisan opendata:key --show    # 현재 설정 상태를 가려서 확인
 ```
 
 ```bash
@@ -139,11 +143,8 @@ php artisan seoul:sync card_sales --yq=20243
 - [소상공인시장진흥공단_상가(상권)정보_API (15012005)](https://www.data.go.kr/data/15012005/openapi.do)
 - Base URL: `https://apis.data.go.kr/B553077/api/open/sdsc2`
 
-```dotenv
-OPENDATA_SERVICE_KEY=발급받은_디코딩_키
-```
-
 ```bash
+php artisan opendata:key datago    # Decoding 키를 붙여넣기
 php artisan sbiz:sync-stores --sido=서울특별시 --sigungu=강서구
 php artisan sbiz:sync-stores --dong=11500603
 ```
