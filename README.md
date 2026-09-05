@@ -273,17 +273,24 @@ PDF 는 dompdf 로 만들며 웹과 같은 Pretendard(`storage/fonts/Pretendard-
 
 ---
 
-## 7. 지도 키 (선택)
+## 7. 지도
 
-**위치 상권 현황(`/map`) 화면은 키가 필요 없습니다.** Leaflet + OpenStreetMap 을 씁니다.
+**지도 API 키가 필요 없습니다.** 두 화면 모두 Leaflet + OpenStreetMap 을 씁니다.
 
-`새 상권분석` 화면의 지도만 카카오 SDK 를 쓰므로, 원한다면 키를 넣습니다.
+| 화면 | 지도 |
+|---|---|
+| 위치 상권 현황 `/map` | 전체 화면 지도, 클릭한 지점의 상권을 즉시 계산 |
+| 새 상권분석 `/analyses/new` | 중심 지점 지정용 지도 |
+
+다른 타일 서버를 쓰려면 `.env` 에서 바꿉니다.
 
 ```dotenv
-KAKAO_MAP_JS_KEY=자바스크립트_키
+MAP_TILE_URL="https://{s}.tile.example.com/{z}/{x}/{y}.png"
+MAP_TILE_ATTRIBUTION="&copy; Example"
 ```
 
-키가 없으면 그 화면에서는 지도 대신 검색 · 좌표 직접 입력 패널이 표시되며, 분석 기능 자체는 그대로 동작합니다.
+> OpenStreetMap 타일은 [이용 정책](https://operations.osmfoundation.org/policies/tiles/)이 있습니다.
+> 트래픽이 늘면 자체 타일 서버나 상용 타일로 바꾸는 편이 좋습니다.
 
 ---
 

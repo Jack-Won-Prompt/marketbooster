@@ -29,7 +29,7 @@ class MarketAnalyzer
         $resolved = $this->resolveRegions($analysis);
 
         if ($resolved->isEmpty()) {
-            throw new \RuntimeException('선택한 범위 안에 등록된 행정동이 없습니다. 지역 데이터를 먼저 수집해 주세요.');
+            throw new \RuntimeException('선택한 범위 안에 수록된 행정동이 없습니다.');
         }
 
         $weights = $this->resolver->weightMap($resolved);

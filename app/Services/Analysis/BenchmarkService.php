@@ -14,13 +14,30 @@ class BenchmarkService
 {
     private const TTL_MINUTES = 720;
 
+    private const VERSION_KEY = 'benchmark:version';
+
+    /**
+     * 통계가 새로 적재되면 이전 평균은 더 이상 맞지 않는다.
+     * (예: 분기 누적을 일평균으로 다시 넣으면 평균이 수십 배 달라진다)
+     * 캐시 키에 버전을 붙이고 적재 때마다 버전을 올려 통째로 무효화한다.
+     */
+    public static function invalidate(): void
+    {
+        Cache::forever(self::VERSION_KEY, (int) Cache::get(self::VERSION_KEY, 0) + 1);
+    }
+
+    private function version(): int
+    {
+        return (int) Cache::get(self::VERSION_KEY, 0);
+    }
+
     /**
      * @return array{dong_count:int, resident:float, households:float, lunch_floating:float, evening_floating:float, workplace:float, sales_amount:float, students:float}
      */
     public function averagesForSido(string $sidoName, Period $period): array
     {
         return Cache::remember(
-            "benchmark:sido:{$sidoName}:{$period->key()}",
+            "benchmark:v{$this->version()}:sido:{$sidoName}:{$period->key()}",
             now()->addMinutes(self::TTL_MINUTES),
             fn () => $this->averages('sido_name', $sidoName, $period)
         );
@@ -32,7 +49,7 @@ class BenchmarkService
     public function averagesForSigungu(string $sidoName, string $sigunguName, Period $period): array
     {
         return Cache::remember(
-            "benchmark:sigungu:{$sidoName}:{$sigunguName}:{$period->key()}",
+            "benchmark:v{$this->version()}:sigungu:{$sidoName}:{$sigunguName}:{$period->key()}",
             now()->addMinutes(self::TTL_MINUTES),
             fn () => $this->averages('sigungu_name', $sigunguName, $period, $sidoName)
         );
@@ -101,6 +118,6 @@ class BenchmarkService
 
     public function flush(): void
     {
-        Cache::flush();
+        self::invalidate();
     }
 }

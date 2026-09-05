@@ -2,6 +2,7 @@
 
 namespace App\Services\OpenData;
 
+use App\Services\Analysis\BenchmarkService;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -156,6 +157,9 @@ class DatasetWriter
         foreach (array_chunk($deduped, 500) as $chunk) {
             DB::table($schema['table'])->upsert($chunk, $schema['unique'], array_merge($schema['values'], ['updated_at']));
         }
+
+        // 통계가 바뀌면 상위 지역 평균 캐시는 더 이상 맞지 않는다.
+        BenchmarkService::invalidate();
 
         return ['imported' => count($deduped), 'skipped' => $skipped];
     }

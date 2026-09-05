@@ -5,9 +5,12 @@
 @section('subheading', '분석할 지역을 고르면 리포트를 만들어 드립니다.')
 
 @push('head')
-    @if (config('map.kakao_js_key'))
-        <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ config('map.kakao_js_key') }}&libraries=services"></script>
-    @endif
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+          integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+            integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 @endpush
 
 @section('content')
@@ -17,7 +20,6 @@
           radius: @js((int) old('radius_m', $defaultRadius)),
           period: @js(old('period', $defaultPeriod->code)),
           center: @js(['lat' => (float) old('center_lat', $defaultCenter['lat']), 'lng' => (float) old('center_lng', $defaultCenter['lng'])]),
-          hasMapKey: @js((bool) config('map.kakao_js_key')),
           previewUrl: @js(route('api.regions.preview')),
           searchUrl: @js(route('api.regions.search')),
       })"
@@ -86,33 +88,10 @@
                 </div>
             </div>
 
-            {{-- 지도 또는 대체 패널 --}}
-            <div class="mt-4">
-                <template x-if="hasMapKey">
-                    <div id="map" class="h-[340px] w-full rounded-xl border border-line"></div>
-                </template>
-
-                <template x-if="!hasMapKey">
-                    <div class="rounded-xl border border-dashed border-line bg-surface-muted p-6 text-center">
-                        <p class="text-[14px] font-bold text-ink-700">지도 키가 설정되지 않았습니다</p>
-                        <p class="mt-1.5 text-[13px] leading-relaxed text-ink-500">
-                            .env 의 <code class="rounded bg-white px-1.5 py-0.5 text-[12px]">KAKAO_MAP_JS_KEY</code> 를 채우면
-                            지도에서 중심을 찍을 수 있습니다. 지금은 검색으로 중심 지점을 정하거나 좌표를 직접 입력하세요.
-                        </p>
-                        <div class="mx-auto mt-4 grid max-w-sm grid-cols-2 gap-3">
-                            <div>
-                                <label class="label">위도</label>
-                                <input type="number" step="0.000001" x-model.number="center.lat"
-                                       @change="refreshPreview()" class="input">
-                            </div>
-                            <div>
-                                <label class="label">경도</label>
-                                <input type="number" step="0.000001" x-model.number="center.lng"
-                                       @change="refreshPreview()" class="input">
-                            </div>
-                        </div>
-                    </div>
-                </template>
+            {{-- 지도 (Leaflet + OpenStreetMap — 별도 키가 필요 없다) --}}
+            <div class="mt-4" x-show="mode === 'radius'" x-cloak>
+                <div id="map" class="h-[340px] w-full overflow-hidden rounded-xl border border-line"></div>
+                <p class="mt-2 text-[12px] text-ink-400">지도를 클릭해 분석 중심을 지정하세요.</p>
             </div>
 
             {{-- 반경 슬라이더 --}}
@@ -272,7 +251,6 @@ function analysisForm(config) {
         period: config.period,
         period: config.period,
         center: { ...config.center },
-        hasMapKey: config.hasMapKey,
         title: @js(old('title', '')),
         address: @js(old('address', '')),
         query: '',
@@ -284,10 +262,9 @@ function analysisForm(config) {
         marker: null,
         circle: null,
 
+        // Alpine 이 컴포넌트를 붙일 때 init() 을 자동으로 부른다. x-init 으로 또 부르면 지도가 두 번 만들어진다.
         init() {
-            if (this.hasMapKey && window.kakao?.maps) {
-                this.$nextTick(() => this.initMap());
-            }
+            this.$nextTick(() => this.initMap());
             this.refreshPreview();
         },
 
@@ -297,42 +274,52 @@ function analysisForm(config) {
 
         initMap() {
             const container = document.getElementById('map');
-            if (!container) return;
+            if (!container || this.map) return;
 
-            const position = new kakao.maps.LatLng(this.center.lat, this.center.lng);
-            this.map = new kakao.maps.Map(container, { center: position, level: 5 });
-            this.marker = new kakao.maps.Marker({ position, map: this.map });
-            this.circle = new kakao.maps.Circle({
-                center: position,
-                radius: this.radius,
-                strokeWeight: 2,
-                strokeColor: '#0593ff',
-                strokeOpacity: 0.9,
-                fillColor: '#0593ff',
-                fillOpacity: 0.12,
-                map: this.map,
-            });
+            const at = [this.center.lat, this.center.lng];
 
-            kakao.maps.event.addListener(this.map, 'click', (event) => {
-                const latLng = event.latLng;
-                this.center = { lat: latLng.getLat(), lng: latLng.getLng() };
+            this.map = L.map(container).setView(at, 14);
+
+            L.tileLayer(@js(config('map.tile_url')), {
+                maxZoom: 19,
+                attribution: @js(config('map.tile_attribution')),
+            }).addTo(this.map);
+
+            this.marker = L.circleMarker(at, {
+                radius: 7, color: '#ffffff', weight: 3, fillColor: '#0593ff', fillOpacity: 1,
+            }).addTo(this.map);
+
+            this.circle = L.circle(at, {
+                radius: this.radius, color: '#0593ff', weight: 2, dashArray: '6 8',
+                fillColor: '#0593ff', fillOpacity: 0.12,
+            }).addTo(this.map);
+
+            this.map.on('click', (event) => {
+                this.center = { lat: event.latlng.lat, lng: event.latlng.lng };
+                this.address = '';
                 this.syncMap();
                 this.refreshPreview();
             });
+
+            // 숨겨져 있다 나타나면 타일이 잘리므로 크기를 다시 잡는다.
+            setTimeout(() => this.map.invalidateSize(), 200);
         },
 
         syncMap() {
             if (!this.map) return;
-            const position = new kakao.maps.LatLng(this.center.lat, this.center.lng);
-            this.marker.setPosition(position);
-            this.circle.setPosition(position);
-            this.circle.setRadius(this.radius);
-            this.map.setCenter(position);
+
+            const at = [this.center.lat, this.center.lng];
+
+            this.marker.setLatLng(at);
+            this.circle.setLatLng(at).setRadius(this.radius);
+            this.map.fitBounds(this.circle.getBounds(), { padding: [30, 30], maxZoom: 16 });
         },
 
         setMode(mode) {
             this.mode = mode;
             this.results = [];
+            // 숨겨져 있던 지도가 다시 보이면 타일이 잘리므로 크기를 다시 잡는다.
+            if (mode === 'radius') this.$nextTick(() => this.map?.invalidateSize());
             this.refreshPreview();
         },
 

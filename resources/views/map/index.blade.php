@@ -35,21 +35,46 @@
         <div class="pointer-events-none absolute inset-x-0 top-0 z-[500] p-4">
             <div class="pointer-events-auto mx-auto w-full max-w-xl">
                 <div class="relative">
-                    <input type="text" x-model="query" @input.debounce.300ms="search()" @focus="search()"
-                           class="input pl-10 shadow-lg" placeholder="행정동으로 이동 (예: 가양1동, 마곡)" autocomplete="off">
-                    <svg class="pointer-events-none absolute left-3.5 top-3 h-5 w-5 text-ink-300" fill="none"
-                         stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/>
-                    </svg>
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <input type="text" x-model="query"
+                                   @input.debounce.300ms="search()"
+                                   @keydown.enter.prevent="submitSearch()"
+                                   @keydown.escape="results = []"
+                                   class="input pl-10 shadow-lg" placeholder="행정동으로 이동 (예: 가양1동, 마곡)" autocomplete="off">
+                            <svg class="pointer-events-none absolute left-3.5 top-3 h-5 w-5 text-ink-300" fill="none"
+                                 stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/>
+                            </svg>
+                        </div>
+
+                        <button type="button" @click="submitSearch()"
+                                class="btn-primary shrink-0 px-5 shadow-lg" :disabled="searching"
+                                :class="searching && 'opacity-60'">
+                            <svg x-show="!searching" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                <circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/>
+                            </svg>
+                            <svg x-show="searching" x-cloak class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+                                <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+                            </svg>
+                            검색
+                        </button>
+                    </div>
 
                     <div x-show="results.length" x-cloak
-                         class="absolute z-30 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
+                         class="absolute z-30 mt-2 max-h-64 w-[calc(100%-5.5rem)] overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
                         <template x-for="r in results" :key="r.code">
                             <button type="button" @click="goTo(r)"
                                     class="block w-full px-4 py-2.5 text-left text-[14px] text-ink-700 hover:bg-surface-muted"
                                     x-text="r.full_name"></button>
                         </template>
                     </div>
+
+                    <p x-show="notFound" x-cloak
+                       class="mt-2 rounded-lg bg-ink-900/85 px-3.5 py-2 text-[12px] font-semibold text-white shadow">
+                        검색 결과가 없습니다. 행정동 이름으로 찾아 보세요. (예: 가양1동, 역삼1동)
+                    </p>
                 </div>
 
                 <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -102,9 +127,33 @@
             </div>
         </div>
 
-        {{-- 오류 --}}
-        <div x-show="error" x-cloak class="m-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p class="text-[13px] leading-relaxed text-amber-800" x-text="error"></p>
+        {{-- 오류 · 수록 범위 밖 --}}
+        <div x-show="error" x-cloak class="m-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+            <p class="text-[13px] font-extrabold text-amber-900" x-text="error"></p>
+
+            <template x-if="coverage.length">
+                <div class="mt-3">
+                    <p class="text-[12px] leading-relaxed text-amber-800">
+                        지금 수록된 지역은 아래가 전부입니다. 서울시 상권분석서비스가
+                        서울 행정동만 제공하기 때문입니다.
+                    </p>
+                    <ul class="mt-2 flex flex-wrap gap-1.5">
+                        <template x-for="c in coverage" :key="c.sido">
+                            <li class="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-900"
+                                x-text="`${c.sido} ${c.dongs.toLocaleString()}개 동`"></li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+
+            <template x-if="nearest">
+                <button type="button" @click="goTo({ code: nearest.code, full_name: nearest.name, lat: nearest.lat, lng: nearest.lng })"
+                        class="mt-3 w-full rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-left transition hover:border-amber-400">
+                    <span class="block text-[11px] font-semibold text-amber-700">가장 가까운 수록 지역</span>
+                    <span class="mt-0.5 block text-[13px] font-extrabold text-ink-900"
+                          x-text="`${nearest.name} · ${nearest.distance_km}km`"></span>
+                </button>
+            </template>
         </div>
 
         {{-- 빈 상태 --}}
@@ -277,7 +326,11 @@ function marketMap(config) {
         results: [],
         report: null,
         loading: false,
+        searching: false,
+        notFound: false,
         error: '',
+        coverage: [],
+        nearest: null,
         placeLabel: '',
         map: null,
         marker: null,
@@ -302,9 +355,9 @@ function marketMap(config) {
             this.map = L.map('market-map', { zoomControl: true, attributionControl: true })
                 .setView([this.center.lat, this.center.lng], 14);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer(@js(config('map.tile_url')), {
                 maxZoom: 19,
-                attribution: '&copy; OpenStreetMap contributors',
+                attribution: @js(config('map.tile_attribution')),
             }).addTo(this.map);
 
             this.map.on('click', (e) => {
@@ -351,25 +404,57 @@ function marketMap(config) {
 
         async search() {
             const keyword = this.query.trim();
+            this.notFound = false;
 
             if (!keyword) {
                 this.results = [];
-                return;
+                return [];
             }
 
             const res = await fetch(`${config.urls.search}?q=${encodeURIComponent(keyword)}`, {
                 headers: { Accept: 'application/json' },
             });
             this.results = (await res.json()).data ?? [];
+
+            return this.results;
         },
 
-        goTo(region) {
+        /**
+         * 검색 버튼 / Enter — 가장 잘 맞는 곳으로 바로 이동해 결과까지 보여 준다.
+         * 후보가 여럿이면 목록을 남겨 두어 다른 곳을 고를 수 있게 한다.
+         */
+        async submitSearch() {
+            if (this.searching) return;
+
+            this.searching = true;
+            this.notFound = false;
+
+            try {
+                const found = await this.search();
+
+                if (!found.length) {
+                    this.notFound = true;
+                    return;
+                }
+
+                const top = found[0];
+                const rest = found.slice(1);
+
+                await this.goTo(top);
+                this.results = rest;
+            } finally {
+                this.searching = false;
+            }
+        },
+
+        async goTo(region) {
             this.results = [];
-            this.query = '';
+            this.notFound = false;
             this.center = { lat: Number(region.lat), lng: Number(region.lng) };
             this.placeLabel = region.full_name;
+            this.query = region.full_name;
             this.draw();
-            this.refresh();
+            await this.refresh();
         },
 
         async refresh() {
@@ -391,10 +476,15 @@ function marketMap(config) {
                 if (!res.ok || !json.ok) {
                     this.report = null;
                     this.error = json.message ?? '이 지점의 상권 데이터를 찾지 못했습니다.';
+                    this.coverage = json.coverage ?? [];
+                    this.nearest = json.nearest ?? null;
                     return;
                 }
 
                 this.report = json.data;
+                this.error = '';
+                this.coverage = [];
+                this.nearest = null;
 
                 if (!this.placeLabel) {
                     this.placeLabel = this.report.meta.regions[0]?.name ?? '';
