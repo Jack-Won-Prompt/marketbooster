@@ -4,7 +4,7 @@ namespace App\Services\OpenData;
 
 use App\Models\DataImportLog;
 use App\Models\DataSource;
-use Illuminate\Support\Carbon;
+use App\Support\Period;
 use RuntimeException;
 
 /**
@@ -22,7 +22,7 @@ class DatasetSynchronizer
      * @param  callable(string): void|null  $progress
      * @return array{imported:int, skipped:int, received:int}
      */
-    public function sync(string $type, string $baseYm, array $extraParams = [], ?callable $progress = null, ?int $maxPages = null): array
+    public function sync(string $type, Period $period, array $extraParams = [], ?callable $progress = null, ?int $maxPages = null): array
     {
         $definition = config("opendata.datasets.{$type}");
 
@@ -34,14 +34,14 @@ class DatasetSynchronizer
             throw new RuntimeException("'{$type}' 데이터셋의 엔드포인트(url)가 비어 있습니다. .env 또는 config/opendata.php 를 확인하세요.");
         }
 
-        $log = DataImportLog::start($type, 'api', $baseYm, $definition['url']);
+        $log = DataImportLog::start($type, 'api', $period, $definition['url']);
         $imported = 0;
         $skipped = 0;
 
         try {
             $received = $this->client->each(
                 $definition['url'],
-                array_merge($definition['params'] ?? [], ['STDR_YM' => $baseYm, 'stdrYm' => $baseYm], $extraParams),
+                array_merge($definition['params'] ?? [], ['STDR_YM' => $period->code, 'stdrYm' => $period->code], $extraParams),
                 $definition['items_path'] ?? 'response.body.items.item',
                 function (array $items, int $page) use ($type, $definition, &$imported, &$skipped, $progress) {
                     $rows = array_map(
@@ -59,7 +59,7 @@ class DatasetSynchronizer
             );
 
             $log->succeed($imported, $skipped);
-            $this->touchDataSource($type, $baseYm, $definition['label'] ?? $type);
+            $this->touchDataSource($type, $period, $definition['label'] ?? $type);
 
             return ['imported' => $imported, 'skipped' => $skipped, 'received' => $received];
         } catch (\Throwable $e) {
@@ -70,15 +70,16 @@ class DatasetSynchronizer
     }
 
     /** 리포트 마지막 장의 "데이터 출처" 기준월을 갱신한다. */
-    public function touchDataSource(string $type, string $baseYm, string $label): void
+    public function touchDataSource(string $type, Period $period, string $label): void
     {
         $source = DataSource::firstOrNew(['key' => $type]);
         $source->fill([
             'category' => str_contains($type, 'card') ? 'sales' : (in_array($type, ['students', 'academies'], true) ? 'education' : 'population'),
             'label' => $source->label ?: $label,
             'provider' => $source->provider ?: '공공데이터포털',
-            'base_ym' => $baseYm,
-            'base_label' => Carbon::createFromFormat('Ym', $baseYm)->format('Y년 n월'),
+            'base_ym' => $period->isQuarter() ? '' : $period->code,
+            'base_yq' => $period->isQuarter() ? $period->code : '',
+            'base_label' => $period->label(),
         ])->save();
     }
 }

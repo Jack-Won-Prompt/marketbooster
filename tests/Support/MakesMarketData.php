@@ -4,6 +4,7 @@ namespace Tests\Support;
 
 use App\Models\Region;
 use App\Models\RegionBoundary;
+use App\Support\Period;
 use App\Support\Taxonomy;
 use Illuminate\Support\Facades\DB;
 
@@ -14,6 +15,11 @@ use Illuminate\Support\Facades\DB;
 trait MakesMarketData
 {
     protected string $baseYm = '202608';
+
+    protected function period(): Period
+    {
+        return Period::month($this->baseYm);
+    }
 
     /**
      * 중심 (lat, lng) 을 기준으로 한 변이 $sizeDeg 도인 정사각형 행정동을 만든다.
@@ -68,7 +74,7 @@ trait MakesMarketData
         foreach (Taxonomy::GENDERS as $gender) {
             foreach (Taxonomy::AGE_BANDS as $age) {
                 $rows['resident_populations'][] = [
-                    'region_code' => $regionCode, 'base_ym' => $this->baseYm,
+                    'region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '',
                     'gender' => $gender, 'age_band' => $age, 'population' => $perCell,
                     'created_at' => $now, 'updated_at' => $now,
                 ];
@@ -76,7 +82,7 @@ trait MakesMarketData
 
             foreach (Taxonomy::WORK_AGE_BANDS as $age) {
                 $rows['workplace_populations'][] = [
-                    'region_code' => $regionCode, 'base_ym' => $this->baseYm,
+                    'region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '',
                     'gender' => $gender, 'age_band' => $age, 'population' => $perCell,
                     'created_at' => $now, 'updated_at' => $now,
                 ];
@@ -86,7 +92,7 @@ trait MakesMarketData
                 foreach (Taxonomy::TIME_BANDS as $band) {
                     foreach (Taxonomy::AGE_BANDS as $age) {
                         $rows['floating_populations'][] = [
-                            'region_code' => $regionCode, 'base_ym' => $this->baseYm,
+                            'region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '',
                             'day_type' => $dayType, 'time_band' => $band,
                             'gender' => $gender, 'age_band' => $age, 'population' => $perCell,
                             'created_at' => $now, 'updated_at' => $now,
@@ -104,7 +110,7 @@ trait MakesMarketData
 
         foreach (Taxonomy::HOUSING_TYPES as $type) {
             DB::table('households')->insert([
-                'region_code' => $regionCode, 'base_ym' => $this->baseYm,
+                'region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '',
                 'housing_type' => $type, 'households' => $perCell * 10,
                 'created_at' => $now, 'updated_at' => $now,
             ]);
@@ -112,16 +118,16 @@ trait MakesMarketData
 
         foreach (Taxonomy::SCHOOL_TYPES as $type) {
             DB::table('students')->insert([
-                'region_code' => $regionCode, 'base_ym' => $this->baseYm,
+                'region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '',
                 'school_type' => $type, 'student_count' => $perCell,
                 'created_at' => $now, 'updated_at' => $now,
             ]);
         }
 
         DB::table('academies')->insert([
-            ['region_code' => $regionCode, 'base_ym' => $this->baseYm, 'category' => 'education',
+            ['region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '', 'category' => 'education',
                 'industry_name' => '수학학원', 'academy_count' => 12, 'created_at' => $now, 'updated_at' => $now],
-            ['region_code' => $regionCode, 'base_ym' => $this->baseYm, 'category' => 'arts_sports',
+            ['region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '', 'category' => 'arts_sports',
                 'industry_name' => '피아노/음악학원', 'academy_count' => 8, 'created_at' => $now, 'updated_at' => $now],
         ]);
 
@@ -133,7 +139,7 @@ trait MakesMarketData
         foreach (Taxonomy::DAY_TYPES as $dayType) {
             foreach (Taxonomy::TIME_BANDS as $band) {
                 DB::table('card_sales')->insert([
-                    'region_code' => $regionCode, 'base_ym' => $this->baseYm,
+                    'region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '',
                     'industry_code' => 'CS100001', 'industry_name' => '한식음식점',
                     'day_type' => $dayType, 'time_band' => $band,
                     'sales_amount' => 10_000_000, 'sales_count' => 800,
@@ -145,7 +151,7 @@ trait MakesMarketData
         foreach (Taxonomy::GENDERS as $gender) {
             foreach (Taxonomy::AGE_BANDS as $age) {
                 DB::table('card_sales_demographics')->insert([
-                    'region_code' => $regionCode, 'base_ym' => $this->baseYm,
+                    'region_code' => $regionCode, 'base_ym' => $this->baseYm, 'base_yq' => '',
                     'industry_code' => 'CS100001', 'gender' => $gender, 'age_band' => $age,
                     'sales_amount' => 6_250_000, 'sales_count' => 500,
                     'created_at' => $now, 'updated_at' => $now,

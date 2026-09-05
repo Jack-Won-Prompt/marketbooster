@@ -72,7 +72,13 @@ class RecordNormalizer
         }
 
         if (isset($row['base_ym'])) {
-            $row['base_ym'] = substr(preg_replace('/\D/', '', (string) $row['base_ym']), 0, 6);
+            $digits = preg_replace('/\D/', '', (string) $row['base_ym']);
+            // 5자리면 분기 코드(YYYYQ)이므로 자르지 않는다.
+            $row['base_ym'] = strlen($digits) === 5 ? $digits : substr($digits, 0, 6);
+        }
+
+        if (isset($row['base_yq'])) {
+            $row['base_yq'] = substr(preg_replace('/\D/', '', (string) $row['base_yq']), 0, 5);
         }
 
         if (isset($row['region_code'])) {

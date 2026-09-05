@@ -11,7 +11,7 @@ class CardSale extends Model
     use BelongsToRegion;
 
     protected $fillable = [
-        'region_code', 'base_ym', 'industry_code', 'industry_name',
+        'region_code', 'base_ym', 'base_yq', 'industry_code', 'industry_name',
         'day_type', 'time_band', 'sales_amount', 'sales_count',
     ];
 

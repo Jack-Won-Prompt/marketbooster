@@ -9,7 +9,7 @@ class Student extends Model
 {
     use BelongsToRegion;
 
-    protected $fillable = ['region_code', 'base_ym', 'school_type', 'student_count'];
+    protected $fillable = ['region_code', 'base_ym', 'base_yq', 'school_type', 'student_count'];
 
     protected function casts(): array
     {

@@ -9,7 +9,7 @@ class ResidentPopulation extends Model
 {
     use BelongsToRegion;
 
-    protected $fillable = ['region_code', 'base_ym', 'gender', 'age_band', 'population'];
+    protected $fillable = ['region_code', 'base_ym', 'base_yq', 'gender', 'age_band', 'population'];
 
     protected function casts(): array
     {

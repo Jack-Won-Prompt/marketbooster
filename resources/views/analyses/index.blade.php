@@ -38,7 +38,7 @@
 
                 <p class="mt-1.5 text-[12px] text-ink-400">
                     {{ $analysis->rangeLabel() }} ·
-                    {{ \Illuminate\Support\Carbon::createFromFormat('Ym', $analysis->base_ym)->format('Y년 n월') }} 기준
+                    {{ $analysis->period()->label() }} 기준
                 </p>
 
                 @if ($selected)

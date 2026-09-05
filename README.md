@@ -105,30 +105,67 @@ npm run dev            # 프런트엔드 개발 서버(HMR)
 
 ## 3. 공공데이터 수집
 
-### 3-1. 오픈 API
+### 3-1. 서울시 상권분석서비스 — 가장 빠른 길 (권장)
 
-1. [data.go.kr](https://www.data.go.kr) 에서 활용신청 후 인증키(**Decoding**)를 발급받습니다.
-2. `.env` 에 넣고 설정 캐시를 지웁니다.
+전국 단위 유동인구·카드매출 오픈 API 는 data.go.kr 에 없습니다.
+반면 **서울 열린데이터광장**에는 행정동 단위로 필요한 지표가 모두 있고,
+행정동 코드가 행정안전부 주민등록 행정기관코드라 `regions.code` 와 그대로 맞습니다.
+
+**API 별 활용신청이 없습니다.** [일반 인증키](https://data.seoul.go.kr/together/mypage/actKeyMain.do)
+하나만 발급받으면 아래 서비스를 모두 호출할 수 있습니다.
+
+| 내부 데이터 | 서비스명 | 데이터셋 |
+|---|---|---|
+| 유동인구 | `VwsmAdstrdFlpopW` | [OA-22178 길단위인구-행정동](https://data.seoul.go.kr/dataList/OA-22178/S/1/datasetView.do) |
+| 카드매출 | `VwsmAdstrdSelngW` | [OA-22175 추정매출-행정동](https://data.seoul.go.kr/dataList/OA-22175/S/1/datasetView.do) |
+| 거주인구 · 배후세대 | `VwsmAdstrdRepopW` | [OA-22183 상주인구-행정동](https://data.seoul.go.kr/dataList/OA-22183/S/1/datasetView.do) |
+| 직장인구 | `VwsmAdstrdWrcPopltnW` | [OA-22184 직장인구-행정동](https://data.seoul.go.kr/dataList/OA-22184/S/1/datasetView.do) |
+
+```dotenv
+SEOUL_OPENAPI_KEY=발급받은_일반_인증키
+```
+
+```bash
+php artisan config:clear
+php artisan seoul:sync all --yq=20242     # 2024년 2분기
+php artisan seoul:sync card_sales --yq=20243
+```
+
+### 3-2. 소상공인 상가(상권)정보 — 전국 점포·업종
+
+전국 점포 목록(상호·업종·좌표)은 data.go.kr 에서 **활용신청**해야 합니다 (자동승인).
+
+- [소상공인시장진흥공단_상가(상권)정보_API (15012005)](https://www.data.go.kr/data/15012005/openapi.do)
+- Base URL: `https://apis.data.go.kr/B553077/api/open/sdsc2`
 
 ```dotenv
 OPENDATA_SERVICE_KEY=발급받은_디코딩_키
 ```
 
 ```bash
-php artisan config:clear
-php artisan opendata:sync floating_population --ym=202608
-php artisan opendata:sync card_sales --ym=202608
+php artisan sbiz:sync-stores --sido=서울특별시 --sigungu=강서구
+php artisan sbiz:sync-stores --dong=11500603
 ```
 
-기관마다 엔드포인트와 응답 필드가 다르므로, 실제 신청한 API 에 맞춰
-`config/opendata.php` 의 `datasets.*` 정의(`url` · `items_path` · `map`)만 고치면 됩니다.
+### 3-3. 그 밖의 공공데이터포털 오픈 API
 
-### 3-2. CSV 파일데이터
+기관마다 엔드포인트와 응답 필드가 달라, 신청한 API 에 맞춰
+`config/opendata.php` 의 `datasets.*` 정의(`url` · `items_path` · `map`)를 채운 뒤 실행합니다.
+
+> `config/opendata.php` 에 기본값으로 들어 있는 두 URL 은 **형식 예시(자리표시자)** 입니다.
+> 실제로 존재하는 서비스가 아니므로 신청한 API 주소로 바꿔야 동작합니다.
+
+```bash
+php artisan opendata:sync floating_population --ym=202608
+```
+
+### 3-4. CSV 파일데이터
 
 포털의 "파일데이터"(대개 CP949 인코딩)는 인증키 없이 바로 적재할 수 있습니다.
 
 ```bash
-php artisan opendata:import card_sales storage/app/seed/sales.csv --ym=202608
+php artisan opendata:import card_sales <파일.csv> --ym=202608   # 월
+php artisan opendata:import card_sales <파일.csv> --ym=20242    # 분기
 ```
 
 지원하는 종류: `regions`, `resident_population`, `households`, `workplace_population`,
@@ -136,9 +173,45 @@ php artisan opendata:import card_sales storage/app/seed/sales.csv --ym=202608
 
 한글 헤더(`행정동코드`, `유동인구수`, `주거유형` …)와 한글 코드값(`남`/`여`, `평일`/`주말`,
 `아파트`/`오피스텔`, `어린이집` …)은 자동으로 내부 표준값으로 변환됩니다.
-같은 `행정동 × 기준월 × 교차축` 조합은 유일 키라서 다시 넣으면 **갱신**됩니다.
+같은 `행정동 × 기간 × 교차축` 조합은 유일 키라서 다시 넣으면 **갱신**됩니다.
 
 적재 현황과 수집 이력은 관리자 계정으로 `/admin/data` 에서 확인합니다.
+
+### 3-5. 기준 기간 — 월과 분기
+
+출처마다 집계 주기가 다릅니다.
+
+| 출처 | 주기 | 저장 칸 |
+|---|---|---|
+| 서울시 상권분석서비스 | 분기 (`20242`) | `base_yq` |
+| 행정안전부 주민등록인구, 학원 인허가 등 | 월 (`202608`) | `base_ym` |
+
+한쪽으로 억지로 변환하면 원본이 훼손되므로 두 칸을 함께 두고, 쓰지 않는 쪽은 빈 문자열로 남깁니다.
+어느 칸으로 걸러야 하는지는 [`App\Support\Period`](app/Support/Period.php) 가 한 곳에서 결정합니다.
+분석 화면의 **기준 기간** 드롭다운에는 실제로 적재된 기간만 나옵니다.
+
+### 3-6. 서울 데이터에서 추정이 섞이는 지점
+
+서울 API 는 교차표가 아니라 **주변분포(marginal)** 만 줍니다.
+예를 들어 유동인구는 시간대별·요일별·성별·연령대별 합계를 각각 줄 뿐,
+"평일 점심 30대 여성" 같은 칸은 주지 않습니다.
+
+우리 스키마는 교차표라서 각 축의 비율을 곱해 칸을 채웁니다.
+
+```
+칸 = 시간대합계 × 요일비율 × 성별비율 × 연령비율
+```
+
+이렇게 채우면 **어느 축으로 합산하든 원본 주변분포가 그대로 복원**됩니다.
+리포트가 보여 주는 값은 모두 주변합이므로 정확하고, 개별 교차 칸만 독립 가정에 따른 추정치입니다.
+([`SeoulTransformerTest`](tests/Unit/SeoulTransformerTest.php) 가 이 성질을 검증합니다.)
+
+그 밖에 알아 두실 점:
+
+- 상주인구·직장인구는 성 × 연령 교차값(`MAG_`/`FAG_`)을 원본이 직접 주므로 **추정이 없습니다.**
+- 서울은 **10대 미만과 70대 이상을 제공하지 않습니다.** 해당 구간은 리포트에서 비어 있습니다.
+- 새벽(00~06) 구간은 버리지 않고 **밤(21:00~05:59)** 에 합산합니다.
+- 배후세대는 **아파트 / 비아파트** 두 가지로만 제공됩니다.
 
 ---
 
@@ -211,7 +284,7 @@ php artisan test
 
 ```
 app/
-  Console/Commands/       opendata:sync · opendata:import
+  Console/Commands/       opendata:sync · opendata:import · seoul:sync · sbiz:sync-stores
   Http/Controllers/       공개 · 인증 · 분석 · 리포트 · 관리자
   Models/                 행정동 · 경계 · 통계 · 분석
   Services/
@@ -219,15 +292,19 @@ app/
                           MarketAnalyzer · InsightWriter · AnalysisRunner
     OpenData/             PublicDataClient · RecordNormalizer · DatasetWriter
                           DatasetSynchronizer · CsvImporter
-  Support/                Taxonomy(코드·라벨 사전) · Korean(조사 처리)
+    OpenData/Seoul/       SeoulOpenApiClient · SeoulSynchronizer · Transformers(가로→세로)
+    OpenData/Sbiz/        StoreCollector (상가·상권정보)
+  Support/                Taxonomy(코드·라벨 사전) · Period(월/분기) · Korean(조사 처리)
 config/
   opendata.php            엔드포인트 · 필드 매핑 · 코드 정규화 사전
+  seoul.php               서울 열린데이터광장 서비스 정의
+  sbiz.php                소상공인 상가정보 API 정의
   map.php                 지도 키 · 반경 기본값
 resources/views/
   layouts/                공개 사이트 · 앱 셸
   analyses/               지역 선택 · 리포트
   reports/pdf.blade.php   PDF 리포트
-storage/app/seed/         행정동 중심점 CSV · 경계 GeoJSON
+storage/app/seed/         행정동 중심점 CSV · 경계 GeoJSON · 서울 API 필드 명세
 storage/fonts/            PDF 용 나눔고딕
 public/images/            랜딩용 SVG 삽화 (파일 안에서 자체 애니메이션)
 ```

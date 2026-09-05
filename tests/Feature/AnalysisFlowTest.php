@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Analysis;
 use App\Models\User;
+use App\Support\Taxonomy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\MakesMarketData;
 use Tests\TestCase;
@@ -36,7 +37,7 @@ class AnalysisFlowTest extends TestCase
             'center_lat' => 37.50,
             'center_lng' => 127.00,
             'radius_m' => 1000,
-            'base_ym' => $this->baseYm,
+            'period' => $this->baseYm,
         ]);
 
         $analysis = Analysis::firstOrFail();
@@ -64,7 +65,7 @@ class AnalysisFlowTest extends TestCase
             'center_lat' => 37.50,
             'center_lng' => 127.00,
             'radius_m' => 500,
-            'base_ym' => $this->baseYm,
+            'period' => $this->baseYm,
         ]);
 
         $payload = Analysis::firstOrFail()->payload;
@@ -81,13 +82,15 @@ class AnalysisFlowTest extends TestCase
             'title' => '가양제1동',
             'mode' => 'region',
             'region_codes' => ['1150000001'],
-            'base_ym' => $this->baseYm,
+            'period' => $this->baseYm,
         ]);
 
         $payload = Analysis::firstOrFail()->payload;
 
+        // 성별 2 × 연령 8 × 100명
         $this->assertSame(1600, $payload['summary']['selected']['resident']);
-        $this->assertSame(4000, $payload['households']['total']);
+        // 주거유형마다 1,000세대씩 심어 두었다
+        $this->assertSame(count(Taxonomy::HOUSING_TYPES) * 1000, $payload['households']['total']);
     }
 
     public function test_다른_회원의_리포트는_볼_수_없다(): void
@@ -114,7 +117,7 @@ class AnalysisFlowTest extends TestCase
             'center_lat' => 37.50,
             'center_lng' => 127.00,
             'radius_m' => 1000,
-            'base_ym' => $this->baseYm,
+            'period' => $this->baseYm,
         ]);
 
         $response = $this->actingAs($this->user)
@@ -130,7 +133,7 @@ class AnalysisFlowTest extends TestCase
             ->post(route('analyses.store'), [
                 'title' => '빈 분석',
                 'mode' => 'region',
-                'base_ym' => $this->baseYm,
+                'period' => $this->baseYm,
             ])
             ->assertSessionHasErrors('region_codes');
 

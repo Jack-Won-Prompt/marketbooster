@@ -15,6 +15,7 @@
       x-data="analysisForm({
           mode: @js(old('mode', 'radius')),
           radius: @js((int) old('radius_m', $defaultRadius)),
+          period: @js(old('period', $defaultPeriod->code)),
           center: @js(['lat' => (float) old('center_lat', $defaultCenter['lat']), 'lng' => (float) old('center_lng', $defaultCenter['lng'])]),
           hasMapKey: @js((bool) config('map.kakao_js_key')),
           previewUrl: @js(route('api.regions.preview')),
@@ -29,7 +30,7 @@
     <input type="hidden" name="center_lng" :value="mode === 'radius' ? center.lng : ''">
     <input type="hidden" name="radius_m" :value="mode === 'radius' ? radius : ''">
     <input type="hidden" name="address" :value="address">
-    <input type="hidden" name="base_ym" value="{{ $latestBaseYm }}">
+    <input type="hidden" name="period" :value="period">
     <template x-for="code in selectedCodes" :key="code">
         <input type="hidden" name="region_codes[]" :value="code">
     </template>
@@ -183,14 +184,25 @@
                        placeholder="예) 마곡나루역 반경 1km">
             </div>
 
+            <div class="mt-4">
+                <label class="label" for="period">기준 기간</label>
+                <select id="period" x-model="period" class="input">
+                    @foreach ($periods as $option)
+                        <option value="{{ $option->code }}">
+                            {{ $option->label() }}{{ $option->isQuarter() ? ' (분기)' : ' (월)' }}
+                        </option>
+                    @endforeach
+                    @if (empty($periods))
+                        <option value="{{ $defaultPeriod->code }}">{{ $defaultPeriod->label() }}</option>
+                    @endif
+                </select>
+                <p class="mt-1.5 text-[12px] leading-relaxed text-ink-400">
+                    서울시 상권분석서비스는 분기 단위, 그 밖의 출처는 월 단위로 제공됩니다.
+                </p>
+            </div>
+
             <div class="mt-4 rounded-xl border border-line-soft bg-surface-muted px-4 py-3">
                 <div class="flex items-center justify-between text-[13px]">
-                    <span class="text-ink-400">기준연월</span>
-                    <span class="font-bold text-ink-700">
-                        {{ \Illuminate\Support\Carbon::createFromFormat('Ym', $latestBaseYm)->format('Y년 n월') }}
-                    </span>
-                </div>
-                <div class="mt-2 flex items-center justify-between text-[13px]">
                     <span class="text-ink-400">분석 범위</span>
                     <span class="font-bold text-ink-700"
                           x-text="mode === 'radius' ? '반경 ' + radius.toLocaleString() + 'm' : '행정동 ' + selected.length + '곳'"></span>
@@ -258,6 +270,8 @@ function analysisForm(config) {
     return {
         mode: config.mode,
         radius: config.radius,
+        period: config.period,
+        period: config.period,
         center: { ...config.center },
         hasMapKey: config.hasMapKey,
         title: @js(old('title', '')),

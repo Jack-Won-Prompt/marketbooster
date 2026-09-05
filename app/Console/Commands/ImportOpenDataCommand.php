@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\OpenData\CsvImporter;
 use App\Services\OpenData\DatasetWriter;
+use App\Support\Period;
 use Illuminate\Console\Command;
 
 class ImportOpenDataCommand extends Command
@@ -11,7 +12,7 @@ class ImportOpenDataCommand extends Command
     protected $signature = 'opendata:import
         {type : 데이터 종류}
         {file : CSV 파일 경로}
-        {--ym= : CSV 에 기준연월 열이 없을 때 사용할 YYYYMM}';
+        {--ym= : CSV 에 기간 열이 없을 때 쓸 YYYYMM(월) 또는 YYYYQ(분기)}';
 
     protected $description = '공공데이터포털 파일데이터(CSV)를 읽어 통계 테이블에 적재합니다.';
 
@@ -33,7 +34,7 @@ class ImportOpenDataCommand extends Command
             $result = $importer->import(
                 $type,
                 $file,
-                $this->option('ym'),
+                $this->option('ym') ? Period::parse($this->option('ym')) : null,
                 fn (string $message) => $this->line('  '.$message)
             );
         } catch (\Throwable $e) {

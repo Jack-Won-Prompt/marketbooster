@@ -378,6 +378,7 @@ class DemoStatisticsSeeder extends Seeder
         return array_merge([
             'region_code' => $code,
             'base_ym' => $this->baseYm,
+            'base_yq' => '',
             'created_at' => now(),
             'updated_at' => now(),
         ], $values);

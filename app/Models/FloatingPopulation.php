@@ -11,7 +11,7 @@ class FloatingPopulation extends Model
     use BelongsToRegion;
 
     protected $fillable = [
-        'region_code', 'base_ym', 'day_type', 'time_band', 'gender', 'age_band', 'population',
+        'region_code', 'base_ym', 'base_yq', 'day_type', 'time_band', 'gender', 'age_band', 'population',
     ];
 
     protected function casts(): array

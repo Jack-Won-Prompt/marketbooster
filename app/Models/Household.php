@@ -11,7 +11,7 @@ class Household extends Model
 
     protected $table = 'households';
 
-    protected $fillable = ['region_code', 'base_ym', 'housing_type', 'households'];
+    protected $fillable = ['region_code', 'base_ym', 'base_yq', 'housing_type', 'households'];
 
     protected function casts(): array
     {

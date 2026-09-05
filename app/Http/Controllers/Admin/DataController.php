@@ -7,6 +7,7 @@ use App\Models\DataImportLog;
 use App\Models\DataSource;
 use App\Services\OpenData\DatasetWriter;
 use App\Services\OpenData\PublicDataClient;
+use App\Support\Period;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -34,17 +35,41 @@ class DataController extends Controller
                 'label' => $label,
                 'rows' => DB::table($table)->count(),
                 'regions' => DB::table($table)->distinct()->count('region_code'),
-                'latest_ym' => DB::table($table)->max('base_ym'),
-                'oldest_ym' => DB::table($table)->min('base_ym'),
+                'latest' => $this->latestLabel($table),
+                'periods' => $this->periodCount($table),
             ];
         }
 
         return view('admin.data', [
+            'storeCount' => DB::table('stores')->count(),
+            'seoulDatasets' => config('seoul.datasets'),
+            'hasSeoulKey' => filled(config('seoul.api_key')),
             'coverage' => $coverage,
             'sources' => DataSource::orderBy('sort_order')->get(),
             'logs' => DataImportLog::latest()->limit(20)->get(),
             'hasServiceKey' => $client->hasKey(),
             'importTypes' => DatasetWriter::types(),
         ]);
+    }
+
+    /** 가장 최근 기준 기간을 사람이 읽을 수 있는 라벨로 (분기 우선) */
+    private function latestLabel(string $table): string
+    {
+        $quarter = DB::table($table)->where('base_yq', '!=', '')->max('base_yq');
+
+        if ($quarter) {
+            return Period::quarter($quarter)->label();
+        }
+
+        $month = DB::table($table)->where('base_ym', '!=', '')->max('base_ym');
+
+        return $month ? Period::month($month)->label() : '-';
+    }
+
+    /** 적재된 기간이 몇 개인지 (월 + 분기) */
+    private function periodCount(string $table): int
+    {
+        return DB::table($table)->where('base_yq', '!=', '')->distinct()->count('base_yq')
+            + DB::table($table)->where('base_ym', '!=', '')->distinct()->count('base_ym');
     }
 }

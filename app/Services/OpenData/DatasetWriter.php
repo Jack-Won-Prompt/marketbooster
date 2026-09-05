@@ -27,51 +27,51 @@ class DatasetWriter
         ],
         'resident_population' => [
             'table' => 'resident_populations',
-            'unique' => ['region_code', 'base_ym', 'gender', 'age_band'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'gender', 'age_band'],
             'values' => ['population'],
-            'require' => ['region_code', 'base_ym', 'gender', 'age_band'],
+            'require' => ['region_code', 'gender', 'age_band'],
         ],
         'households' => [
             'table' => 'households',
-            'unique' => ['region_code', 'base_ym', 'housing_type'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'housing_type'],
             'values' => ['households'],
-            'require' => ['region_code', 'base_ym', 'housing_type'],
+            'require' => ['region_code', 'housing_type'],
         ],
         'workplace_population' => [
             'table' => 'workplace_populations',
-            'unique' => ['region_code', 'base_ym', 'gender', 'age_band'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'gender', 'age_band'],
             'values' => ['population'],
-            'require' => ['region_code', 'base_ym', 'gender', 'age_band'],
+            'require' => ['region_code', 'gender', 'age_band'],
         ],
         'floating_population' => [
             'table' => 'floating_populations',
-            'unique' => ['region_code', 'base_ym', 'day_type', 'time_band', 'gender', 'age_band'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'day_type', 'time_band', 'gender', 'age_band'],
             'values' => ['population'],
-            'require' => ['region_code', 'base_ym', 'day_type', 'time_band', 'gender', 'age_band'],
+            'require' => ['region_code', 'day_type', 'time_band', 'gender', 'age_band'],
         ],
         'card_sales' => [
             'table' => 'card_sales',
-            'unique' => ['region_code', 'base_ym', 'industry_code', 'day_type', 'time_band'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'industry_code', 'day_type', 'time_band'],
             'values' => ['industry_name', 'sales_amount', 'sales_count'],
-            'require' => ['region_code', 'base_ym', 'industry_code', 'day_type', 'time_band'],
+            'require' => ['region_code', 'industry_code', 'day_type', 'time_band'],
         ],
         'card_sales_demographics' => [
             'table' => 'card_sales_demographics',
-            'unique' => ['region_code', 'base_ym', 'industry_code', 'gender', 'age_band'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'industry_code', 'gender', 'age_band'],
             'values' => ['sales_amount', 'sales_count'],
-            'require' => ['region_code', 'base_ym', 'industry_code', 'gender', 'age_band'],
+            'require' => ['region_code', 'industry_code', 'gender', 'age_band'],
         ],
         'students' => [
             'table' => 'students',
-            'unique' => ['region_code', 'base_ym', 'school_type'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'school_type'],
             'values' => ['student_count'],
-            'require' => ['region_code', 'base_ym', 'school_type'],
+            'require' => ['region_code', 'school_type'],
         ],
         'academies' => [
             'table' => 'academies',
-            'unique' => ['region_code', 'base_ym', 'category', 'industry_name'],
+            'unique' => ['region_code', 'base_ym', 'base_yq', 'category', 'industry_name'],
             'values' => ['academy_count'],
-            'require' => ['region_code', 'base_ym', 'category', 'industry_name'],
+            'require' => ['region_code', 'category', 'industry_name'],
         ],
         'apartment_move_ins' => [
             'table' => 'apartment_move_ins',
@@ -108,7 +108,20 @@ class DatasetWriter
         $skipped = 0;
         $now = now();
 
+        $needsPeriod = in_array('base_yq', $schema['unique'], true);
+
         foreach ($rows as $row) {
+            if ($needsPeriod) {
+                $row = $this->normalizePeriod($row);
+
+                // 월·분기 중 어느 쪽도 없으면 어느 기간의 값인지 알 수 없다.
+                if ($row['base_ym'] === '' && $row['base_yq'] === '') {
+                    $skipped++;
+
+                    continue;
+                }
+            }
+
             if ($this->isIncomplete($row, $schema['require'])) {
                 $skipped++;
 
@@ -145,6 +158,28 @@ class DatasetWriter
         }
 
         return ['imported' => count($deduped), 'skipped' => $skipped];
+    }
+
+    /**
+     * 기간 칸을 정돈한다.
+     * 쓰지 않는 쪽은 NULL 이 아니라 빈 문자열로 둬야 유일 키가 제 역할을 한다.
+     * (MySQL 은 유일 인덱스에서 NULL 을 서로 다른 값으로 보기 때문에 재수집 시 중복이 쌓인다.)
+     */
+    private function normalizePeriod(array $row): array
+    {
+        $ym = trim((string) ($row['base_ym'] ?? ''));
+        $yq = trim((string) ($row['base_yq'] ?? ''));
+
+        // 5자리 값이 base_ym 으로 들어오면 분기 코드로 본다.
+        if ($yq === '' && preg_match('/^\d{4}[1-4]$/', $ym)) {
+            $yq = $ym;
+            $ym = '';
+        }
+
+        $row['base_ym'] = preg_match('/^\d{6}$/', $ym) ? $ym : '';
+        $row['base_yq'] = preg_match('/^\d{4}[1-4]$/', $yq) ? $yq : '';
+
+        return $row;
     }
 
     private function isIncomplete(array $row, array $required): bool

@@ -6,6 +6,7 @@ use App\Models\Analysis;
 use App\Models\Region;
 use App\Services\Analysis\AnalysisRunner;
 use App\Services\Analysis\StatisticsRepository;
+use App\Support\Period;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -27,11 +28,14 @@ class AnalysisController extends Controller
 
     public function create(Request $request): View
     {
+        $periods = $this->stats->availablePeriods();
+
         return view('analyses.create', [
             'radiusOptions' => config('map.radius_options'),
             'defaultRadius' => config('map.default_radius'),
             'defaultCenter' => config('map.default_center'),
-            'latestBaseYm' => $this->stats->latestBaseYm() ?? now()->subMonth()->format('Ym'),
+            'periods' => $periods,
+            'defaultPeriod' => $periods[0] ?? Period::month(now()->subMonth()->format('Ym')),
             'sidoList' => Region::query()->distinct()->orderBy('sido_name')->pluck('sido_name'),
             'favorites' => $request->user()->favoriteRegions()->with('region')->get(),
         ]);
@@ -48,11 +52,15 @@ class AnalysisController extends Controller
             'address' => ['nullable', 'string', 'max:200'],
             'region_codes' => ['required_if:mode,region', 'nullable', 'array', 'max:30'],
             'region_codes.*' => ['string', 'exists:regions,code'],
-            'base_ym' => ['required', 'digits:6'],
+            // 월(YYYYMM) 또는 분기(YYYYQ) 코드를 받는다.
+            'period' => ['required', 'regex:/^(\d{6}|\d{4}[1-4])$/'],
         ], [
             'region_codes.required_if' => '분석할 행정동을 한 곳 이상 선택해 주세요.',
             'center_lat.required_if' => '지도를 클릭하거나 주소를 검색해 중심 지점을 지정해 주세요.',
+            'period.regex' => '기준 기간은 YYYYMM(월) 또는 YYYYQ(분기) 형식이어야 합니다.',
         ]);
+
+        $period = Period::parse($validated['period']);
 
         $analysis = $request->user()->analyses()->create([
             'title' => $validated['title'],
@@ -62,9 +70,8 @@ class AnalysisController extends Controller
             'radius_m' => $validated['radius_m'] ?? null,
             'address' => $validated['address'] ?? null,
             'region_codes' => $validated['region_codes'] ?? [],
-            'base_ym' => $validated['base_ym'],
             'status' => 'pending',
-        ]);
+        ] + $period->columns());
 
         $this->runner->run($analysis);
 
@@ -86,10 +93,10 @@ class AnalysisController extends Controller
     {
         $this->authorizeOwner($request, $analysis);
 
-        $latest = $this->stats->latestBaseYm();
+        $latest = $this->stats->latestPeriod();
 
         if ($latest) {
-            $analysis->update(['base_ym' => $latest]);
+            $analysis->update($latest->columns());
         }
 
         $this->runner->run($analysis);

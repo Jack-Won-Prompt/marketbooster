@@ -2,6 +2,7 @@
 
 namespace App\Services\Analysis;
 
+use App\Support\Period;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -14,30 +15,30 @@ class BenchmarkService
     private const TTL_MINUTES = 720;
 
     /**
-     * @return array{resident:float, households:float, lunch_floating:float, evening_floating:float, workplace:float, sales_amount:float}
+     * @return array{dong_count:int, resident:float, households:float, lunch_floating:float, evening_floating:float, workplace:float, sales_amount:float, students:float}
      */
-    public function averagesForSido(string $sidoName, string $baseYm): array
+    public function averagesForSido(string $sidoName, Period $period): array
     {
         return Cache::remember(
-            "benchmark:sido:{$sidoName}:{$baseYm}",
+            "benchmark:sido:{$sidoName}:{$period->key()}",
             now()->addMinutes(self::TTL_MINUTES),
-            fn () => $this->averages('sido_name', $sidoName, $baseYm)
+            fn () => $this->averages('sido_name', $sidoName, $period)
         );
     }
 
     /**
-     * @return array{resident:float, households:float, lunch_floating:float, evening_floating:float, workplace:float, sales_amount:float}
+     * @return array{dong_count:int, resident:float, households:float, lunch_floating:float, evening_floating:float, workplace:float, sales_amount:float, students:float}
      */
-    public function averagesForSigungu(string $sidoName, string $sigunguName, string $baseYm): array
+    public function averagesForSigungu(string $sidoName, string $sigunguName, Period $period): array
     {
         return Cache::remember(
-            "benchmark:sigungu:{$sidoName}:{$sigunguName}:{$baseYm}",
+            "benchmark:sigungu:{$sidoName}:{$sigunguName}:{$period->key()}",
             now()->addMinutes(self::TTL_MINUTES),
-            fn () => $this->averages('sigungu_name', $sigunguName, $baseYm, $sidoName)
+            fn () => $this->averages('sigungu_name', $sigunguName, $period, $sidoName)
         );
     }
 
-    private function averages(string $column, string $value, string $baseYm, ?string $sidoName = null): array
+    private function averages(string $column, string $value, Period $period, ?string $sidoName = null): array
     {
         $regionQuery = DB::table('regions')->where($column, $value);
 
@@ -56,29 +57,29 @@ class BenchmarkService
 
         return [
             'dong_count' => $dongCount,
-            'resident' => $divide($this->sum('resident_populations', 'population', $codes, $baseYm)),
-            'households' => $divide($this->sum('households', 'households', $codes, $baseYm)),
-            'lunch_floating' => $divide($this->floatingSum($codes, $baseYm, 'lunch')),
-            'evening_floating' => $divide($this->floatingSum($codes, $baseYm, 'evening')),
-            'workplace' => $divide($this->sum('workplace_populations', 'population', $codes, $baseYm)),
-            'sales_amount' => $divide($this->sum('card_sales', 'sales_amount', $codes, $baseYm)),
-            'students' => $divide($this->sum('students', 'student_count', $codes, $baseYm)),
+            'resident' => $divide($this->sum('resident_populations', 'population', $codes, $period)),
+            'households' => $divide($this->sum('households', 'households', $codes, $period)),
+            'lunch_floating' => $divide($this->floatingSum($codes, $period, 'lunch')),
+            'evening_floating' => $divide($this->floatingSum($codes, $period, 'evening')),
+            'workplace' => $divide($this->sum('workplace_populations', 'population', $codes, $period)),
+            'sales_amount' => $divide($this->sum('card_sales', 'sales_amount', $codes, $period)),
+            'students' => $divide($this->sum('students', 'student_count', $codes, $period)),
         ];
     }
 
-    private function sum(string $table, string $column, array $codes, string $baseYm): float
+    private function sum(string $table, string $column, array $codes, Period $period): float
     {
         return (float) DB::table($table)
             ->whereIn('region_code', $codes)
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->sum($column);
     }
 
-    private function floatingSum(array $codes, string $baseYm, string $timeBand): float
+    private function floatingSum(array $codes, Period $period, string $timeBand): float
     {
         return (float) DB::table('floating_populations')
             ->whereIn('region_code', $codes)
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->where('day_type', 'weekday')
             ->where('time_band', $timeBand)
             ->sum('population');

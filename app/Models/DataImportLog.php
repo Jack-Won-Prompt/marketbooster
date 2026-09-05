@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\Period;
 use Illuminate\Database\Eloquent\Model;
 
 class DataImportLog extends Model
 {
     protected $fillable = [
-        'type', 'channel', 'base_ym', 'reference', 'rows_imported', 'rows_skipped',
+        'type', 'channel', 'base_ym', 'base_yq', 'reference', 'rows_imported', 'rows_skipped',
         'status', 'message', 'started_at', 'finished_at',
     ];
 
@@ -19,12 +20,13 @@ class DataImportLog extends Model
         ];
     }
 
-    public static function start(string $type, string $channel, ?string $baseYm, ?string $reference = null): self
+    public static function start(string $type, string $channel, ?Period $period, ?string $reference = null): self
     {
         return static::create([
             'type' => $type,
             'channel' => $channel,
-            'base_ym' => $baseYm,
+            'base_ym' => $period && ! $period->isQuarter() ? $period->code : '',
+            'base_yq' => $period && $period->isQuarter() ? $period->code : '',
             'reference' => $reference,
             'status' => 'running',
             'started_at' => now(),

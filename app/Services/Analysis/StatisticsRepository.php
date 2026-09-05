@@ -2,6 +2,7 @@
 
 namespace App\Services\Analysis;
 
+use App\Support\Period;
 use App\Support\Taxonomy;
 use Illuminate\Support\Facades\DB;
 
@@ -18,12 +19,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array{matrix: array<string, array<string, int>>, male: int, female: int, total: int}
      */
-    public function residentByGenderAge(array $weights, string $baseYm): array
+    public function residentByGenderAge(array $weights, Period $period): array
     {
         $rows = DB::table('resident_populations')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(population) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'gender', 'age_band')
             ->get();
 
@@ -34,12 +35,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array{matrix: array<string, array<string, int>>, male: int, female: int, total: int}
      */
-    public function workplaceByGenderAge(array $weights, string $baseYm): array
+    public function workplaceByGenderAge(array $weights, Period $period): array
     {
         $rows = DB::table('workplace_populations')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(population) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'gender', 'age_band')
             ->get();
 
@@ -50,12 +51,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array{by_type: array<string, int>, total: int}
      */
-    public function householdsByType(array $weights, string $baseYm): array
+    public function householdsByType(array $weights, Period $period): array
     {
         $rows = DB::table('households')
             ->select('region_code', 'housing_type', DB::raw('SUM(households) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'housing_type')
             ->get();
 
@@ -80,12 +81,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array<string, array<string, int>>
      */
-    public function floatingByDayAndBand(array $weights, string $baseYm): array
+    public function floatingByDayAndBand(array $weights, Period $period): array
     {
         $rows = DB::table('floating_populations')
             ->select('region_code', 'day_type', 'time_band', DB::raw('SUM(population) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'day_type', 'time_band')
             ->get();
 
@@ -114,12 +115,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array{matrix: array<string, array<string, int>>, male: int, female: int, total: int}
      */
-    public function floatingByGenderAge(array $weights, string $baseYm, string $dayType = 'weekday'): array
+    public function floatingByGenderAge(array $weights, Period $period, string $dayType = 'weekday'): array
     {
         $rows = DB::table('floating_populations')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(population) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->where('day_type', $dayType)
             ->groupBy('region_code', 'gender', 'age_band')
             ->get();
@@ -133,7 +134,7 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array<int, array{code:string, name:string, group:string, amount:int, count:int}>
      */
-    public function salesByIndustry(array $weights, string $baseYm): array
+    public function salesByIndustry(array $weights, Period $period): array
     {
         $rows = DB::table('card_sales')
             ->leftJoin('industries', 'industries.code', '=', 'card_sales.industry_code')
@@ -146,7 +147,7 @@ class StatisticsRepository
                 DB::raw('SUM(card_sales.sales_count) AS cnt')
             )
             ->whereIn('card_sales.region_code', array_keys($weights))
-            ->where('card_sales.base_ym', $baseYm)
+            ->where('card_sales.'.$period->filterColumn(), $period->code)
             ->groupBy('card_sales.region_code', 'card_sales.industry_code', 'card_sales.industry_name', 'industries.group_name')
             ->get();
 
@@ -186,12 +187,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array<string, array<string, int>>
      */
-    public function salesByDayAndBand(array $weights, string $baseYm): array
+    public function salesByDayAndBand(array $weights, Period $period): array
     {
         $rows = DB::table('card_sales')
             ->select('region_code', 'day_type', 'time_band', DB::raw('SUM(sales_amount) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'day_type', 'time_band')
             ->get();
 
@@ -222,12 +223,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array{matrix: array<string, array<string, int>>, male: int, female: int, total: int}
      */
-    public function salesByGenderAge(array $weights, string $baseYm): array
+    public function salesByGenderAge(array $weights, Period $period): array
     {
         $rows = DB::table('card_sales_demographics')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(sales_amount) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'gender', 'age_band')
             ->get();
 
@@ -238,12 +239,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array{by_type: array<string, int>, total: int}
      */
-    public function studentsByType(array $weights, string $baseYm): array
+    public function studentsByType(array $weights, Period $period): array
     {
         $rows = DB::table('students')
             ->select('region_code', 'school_type', DB::raw('SUM(student_count) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'school_type')
             ->get();
 
@@ -266,12 +267,12 @@ class StatisticsRepository
      * @param  array<string, float>  $weights
      * @return array{by_category: array<string, int>, by_industry: array<int, array{name:string, category:string, count:int}>, total: int}
      */
-    public function academies(array $weights, string $baseYm): array
+    public function academies(array $weights, Period $period): array
     {
         $rows = DB::table('academies')
             ->select('region_code', 'category', 'industry_name', DB::raw('SUM(academy_count) AS value'))
             ->whereIn('region_code', array_keys($weights))
-            ->where('base_ym', $baseYm)
+            ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'category', 'industry_name')
             ->get();
 
@@ -330,10 +331,33 @@ class StatisticsRepository
             ->all();
     }
 
-    /** 데이터가 존재하는 가장 최근 기준연월 */
-    public function latestBaseYm(string $table = 'floating_populations'): ?string
+    /**
+     * 데이터가 존재하는 가장 최근 기준 기간.
+     * 분기 데이터가 있으면 그쪽을 우선한다 (서울시 상권분석서비스가 분기 단위라 더 정밀하다).
+     */
+    public function latestPeriod(string $table = 'floating_populations'): ?Period
     {
-        return DB::table($table)->max('base_ym');
+        $quarter = DB::table($table)->where('base_yq', '!=', '')->max('base_yq');
+
+        if ($quarter) {
+            return Period::quarter($quarter);
+        }
+
+        $month = DB::table($table)->where('base_ym', '!=', '')->max('base_ym');
+
+        return $month ? Period::month($month) : null;
+    }
+
+    /** 선택 가능한 기간 목록 (최신순) */
+    public function availablePeriods(string $table = 'floating_populations'): array
+    {
+        $quarters = DB::table($table)->where('base_yq', '!=', '')->distinct()->orderByDesc('base_yq')->pluck('base_yq');
+        $months = DB::table($table)->where('base_ym', '!=', '')->distinct()->orderByDesc('base_ym')->pluck('base_ym');
+
+        return array_merge(
+            $quarters->map(fn ($c) => Period::quarter($c))->all(),
+            $months->map(fn ($c) => Period::month($c))->all(),
+        );
     }
 
     /**

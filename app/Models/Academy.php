@@ -11,7 +11,7 @@ class Academy extends Model
 
     protected $table = 'academies';
 
-    protected $fillable = ['region_code', 'base_ym', 'category', 'industry_name', 'academy_count'];
+    protected $fillable = ['region_code', 'base_ym', 'base_yq', 'category', 'industry_name', 'academy_count'];
 
     protected function casts(): array
     {

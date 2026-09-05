@@ -3,6 +3,7 @@
 namespace App\Services\OpenData;
 
 use App\Models\DataImportLog;
+use App\Support\Period;
 use RuntimeException;
 
 /**
@@ -17,6 +18,7 @@ class CsvImporter
     public const HEADER_ALIASES = [
         'region_code' => ['행정동코드', '행정동_코드', '행정구역코드', 'adstrd_code', 'admi_cd', 'hdong_cd', 'region_code'],
         'base_ym' => ['기준연월', '기준_년월', '기준년월', '기준월', 'stdr_ym', 'base_ym', 'ta_ym'],
+        'base_yq' => ['기준연분기', '기준_년분기', '기준년분기', '기준분기', '기준_년분기_코드', 'stdr_yyqu_cd', 'base_yq'],
         'gender' => ['성별', '성별구분', 'sex_cd', 'gender'],
         'age_band' => ['연령대', '연령대구분', '연령', 'age_cd', 'age_band'],
         'day_type' => ['요일구분', '평일주말구분', '주중주말', 'day_tp', 'day_type'],
@@ -55,13 +57,13 @@ class CsvImporter
      * @param  callable(string): void|null  $progress
      * @return array{imported:int, skipped:int, rows:int}
      */
-    public function import(string $type, string $path, ?string $baseYm = null, ?callable $progress = null): array
+    public function import(string $type, string $path, ?Period $period = null, ?callable $progress = null): array
     {
         if (! is_readable($path)) {
             throw new RuntimeException("CSV 파일을 읽을 수 없습니다: {$path}");
         }
 
-        $log = DataImportLog::start($type, 'csv', $baseYm, $path);
+        $log = DataImportLog::start($type, 'csv', $period, $path);
 
         try {
             $handle = fopen($path, 'r');
@@ -85,7 +87,7 @@ class CsvImporter
                 }
 
                 $rows++;
-                $record = $this->buildRecord($header, $line, $baseYm);
+                $record = $this->buildRecord($header, $line, $period);
                 $buffer[] = $record;
 
                 if (count($buffer) >= 2000) {
@@ -141,7 +143,7 @@ class CsvImporter
         return $resolved;
     }
 
-    private function buildRecord(array $header, array $line, ?string $baseYm): array
+    private function buildRecord(array $header, array $line, ?Period $period): array
     {
         $record = [];
 
@@ -153,9 +155,9 @@ class CsvImporter
             }
         }
 
-        // CSV 에 기준연월 열이 없으면 커맨드 인자로 받은 값을 채운다.
-        if ($baseYm && blank($record['base_ym'] ?? null)) {
-            $record['base_ym'] = $baseYm;
+        // CSV 에 기간 열이 없으면 커맨드 인자로 받은 값을 채운다.
+        if ($period && blank($record['base_ym'] ?? null) && blank($record['base_yq'] ?? null)) {
+            $record += $period->columns();
         }
 
         return $this->normalizer->normalizeCodes($record);

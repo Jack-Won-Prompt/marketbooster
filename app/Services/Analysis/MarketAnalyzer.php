@@ -4,6 +4,7 @@ namespace App\Services\Analysis;
 
 use App\Models\Analysis;
 use App\Models\DataSource;
+use App\Support\Period;
 use App\Support\Taxonomy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -32,21 +33,21 @@ class MarketAnalyzer
         }
 
         $weights = $this->resolver->weightMap($resolved);
-        $baseYm = $analysis->base_ym;
+        $period = $analysis->period();
         $reportDate = Carbon::now()->format('Y/m/d');
 
-        $resident = $this->stats->residentByGenderAge($weights, $baseYm);
-        $households = $this->stats->householdsByType($weights, $baseYm);
-        $workplace = $this->stats->workplaceByGenderAge($weights, $baseYm);
-        $floatingByDay = $this->stats->floatingByDayAndBand($weights, $baseYm);
-        $floatingByGenderAge = $this->stats->floatingByGenderAge($weights, $baseYm);
+        $resident = $this->stats->residentByGenderAge($weights, $period);
+        $households = $this->stats->householdsByType($weights, $period);
+        $workplace = $this->stats->workplaceByGenderAge($weights, $period);
+        $floatingByDay = $this->stats->floatingByDayAndBand($weights, $period);
+        $floatingByGenderAge = $this->stats->floatingByGenderAge($weights, $period);
 
-        $summary = $this->buildSummary($resolved, $baseYm, $resident, $households, $workplace, $floatingByDay);
-        $sales = $this->buildSales($weights, $baseYm);
-        $education = $this->buildEducation($weights, $baseYm);
+        $summary = $this->buildSummary($resolved, $period, $resident, $households, $workplace, $floatingByDay);
+        $sales = $this->buildSales($weights, $period);
+        $education = $this->buildEducation($weights, $period);
 
         return [
-            'meta' => $this->buildMeta($analysis, $resolved, $baseYm),
+            'meta' => $this->buildMeta($analysis, $resolved, $period),
             'summary' => $summary + ['insights' => $this->insights->population($summary, $reportDate)],
             'resident' => $resident,
             'households' => $households + [
@@ -58,7 +59,7 @@ class MarketAnalyzer
                 'by_gender_age' => $floatingByGenderAge,
                 'peak' => $this->peakOf($floatingByDay),
             ],
-            'sales' => $sales + ['insights' => $this->insights->sales($sales, $this->baseLabel($baseYm))],
+            'sales' => $sales + ['insights' => $this->insights->sales($sales, $period->label())],
             'education' => $education + ['insights' => $this->insights->education($education, $summary, $reportDate)],
             'sources' => $this->buildSources(),
         ];
@@ -80,7 +81,7 @@ class MarketAnalyzer
         return $this->resolver->fromCodes($analysis->region_codes ?? []);
     }
 
-    private function buildMeta(Analysis $analysis, Collection $resolved, string $baseYm): array
+    private function buildMeta(Analysis $analysis, Collection $resolved, Period $period): array
     {
         $first = $resolved->first()['region'];
 
@@ -88,8 +89,11 @@ class MarketAnalyzer
             'title' => $analysis->title,
             'generated_at' => Carbon::now()->format('Y. m. d'),
             'generated_at_full' => Carbon::now()->format('Y-m-d H:i'),
-            'base_ym' => $baseYm,
-            'base_label' => $this->baseLabel($baseYm),
+            'period_type' => $period->type,
+            'period_code' => $period->code,
+            'base_ym' => $period->isQuarter() ? '' : $period->code,
+            'base_yq' => $period->isQuarter() ? $period->code : '',
+            'base_label' => $period->label(),
             'mode' => $analysis->mode,
             'scope_label' => $analysis->rangeLabel(),
             'address' => $analysis->address,
@@ -113,15 +117,15 @@ class MarketAnalyzer
 
     private function buildSummary(
         Collection $resolved,
-        string $baseYm,
+        Period $period,
         array $resident,
         array $households,
         array $workplace,
         array $floatingByDay
     ): array {
         $first = $resolved->first()['region'];
-        $sido = $this->benchmarks->averagesForSido($first->sido_name, $baseYm);
-        $sigungu = $this->benchmarks->averagesForSigungu($first->sido_name, $first->sigungu_name, $baseYm);
+        $sido = $this->benchmarks->averagesForSido($first->sido_name, $period);
+        $sigungu = $this->benchmarks->averagesForSigungu($first->sido_name, $first->sigungu_name, $period);
 
         $selected = [
             'resident' => $resident['total'],
@@ -147,9 +151,9 @@ class MarketAnalyzer
         ];
     }
 
-    private function buildSales(array $weights, string $baseYm): array
+    private function buildSales(array $weights, Period $period): array
     {
-        $byIndustry = $this->stats->salesByIndustry($weights, $baseYm);
+        $byIndustry = $this->stats->salesByIndustry($weights, $period);
         $totalAmount = array_sum(array_column($byIndustry, 'amount'));
         $totalCount = array_sum(array_column($byIndustry, 'count'));
 
@@ -176,8 +180,8 @@ class MarketAnalyzer
 
         usort($byGroup, fn ($a, $b) => $b['amount'] <=> $a['amount']);
 
-        $byDayBand = $this->stats->salesByDayAndBand($weights, $baseYm);
-        $byGenderAge = $this->stats->salesByGenderAge($weights, $baseYm);
+        $byDayBand = $this->stats->salesByDayAndBand($weights, $period);
+        $byGenderAge = $this->stats->salesByGenderAge($weights, $period);
 
         return [
             'total_amount' => $totalAmount,
@@ -192,11 +196,11 @@ class MarketAnalyzer
         ];
     }
 
-    private function buildEducation(array $weights, string $baseYm): array
+    private function buildEducation(array $weights, Period $period): array
     {
         return [
-            'students' => $this->stats->studentsByType($weights, $baseYm),
-            'academies' => $this->stats->academies($weights, $baseYm),
+            'students' => $this->stats->studentsByType($weights, $period),
+            'academies' => $this->stats->academies($weights, $period),
         ];
     }
 
@@ -256,10 +260,5 @@ class MarketAnalyzer
         $best['share'] = round($best['value'] / $total * 100, 1);
 
         return $best;
-    }
-
-    private function baseLabel(string $baseYm): string
-    {
-        return Carbon::createFromFormat('Ym', $baseYm)->format('Y년 n월');
     }
 }

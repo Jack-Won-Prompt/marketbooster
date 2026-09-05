@@ -3,11 +3,12 @@
 namespace App\Models\Concerns;
 
 use App\Models\Region;
+use App\Support\Period;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * region_code / base_ym 을 가진 통계 테이블 공통 동작.
+ * region_code 와 기준 기간(base_ym / base_yq)을 가진 통계 테이블 공통 동작.
  */
 trait BelongsToRegion
 {
@@ -21,8 +22,9 @@ trait BelongsToRegion
         return $query->whereIn('region_code', $regionCodes);
     }
 
-    public function scopeForMonth(Builder $query, ?string $baseYm): Builder
+    /** 월 또는 분기 어느 쪽이든 알맞은 칸으로 걸러 준다. */
+    public function scopeForPeriod(Builder $query, ?Period $period): Builder
     {
-        return $baseYm ? $query->where('base_ym', $baseYm) : $query;
+        return $period ? $query->where($period->filterColumn(), $period->code) : $query;
     }
 }

@@ -24,6 +24,9 @@ class Taxonomy
     /** 직장인구는 20~60대만 집계된다. */
     public const WORK_AGE_BANDS = ['20s', '30s', '40s', '50s', '60s'];
 
+    /** 서울시 상권분석서비스가 제공하는 연령 구간 (10대 미만 · 70대 이상은 제공하지 않음) */
+    public const SEOUL_AGE_BANDS = ['10s', '20s', '30s', '40s', '50s', '60s'];
+
     public const GENDERS = ['M', 'F'];
 
     public const GENDER_LABELS = ['M' => '남성', 'F' => '여성'];
@@ -47,16 +50,18 @@ class Taxonomy
         'lunch' => '11:00 - 14:59',
         'afternoon' => '15:00 - 17:59',
         'evening' => '18:00 - 20:59',
-        'night' => '21:00 - 00:59',
+        'night' => '21:00 - 05:59',
     ];
 
-    public const HOUSING_TYPES = ['apartment', 'officetel', 'villa', 'detached'];
+    public const HOUSING_TYPES = ['apartment', 'officetel', 'villa', 'detached', 'non_apartment'];
 
     public const HOUSING_LABELS = [
         'apartment' => '아파트',
         'officetel' => '오피스텔',
         'villa' => '빌라',
         'detached' => '단독주택',
+        // 서울시 상권분석서비스는 아파트/비아파트로만 구분해 제공한다.
+        'non_apartment' => '비아파트',
     ];
 
     public const SCHOOL_TYPES = ['daycare', 'kindergarten', 'elementary', 'middle', 'high', 'university'];

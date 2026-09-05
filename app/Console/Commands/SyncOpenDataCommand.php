@@ -4,13 +4,14 @@ namespace App\Console\Commands;
 
 use App\Services\OpenData\DatasetSynchronizer;
 use App\Services\OpenData\PublicDataClient;
+use App\Support\Period;
 use Illuminate\Console\Command;
 
 class SyncOpenDataCommand extends Command
 {
     protected $signature = 'opendata:sync
         {type : 데이터 종류 (floating_population|card_sales|resident_population)}
-        {--ym= : 기준연월 YYYYMM (기본: 전월)}
+        {--ym= : 기준 기간 YYYYMM(월) 또는 YYYYQ(분기) (기본: 전월)}
         {--pages= : 최대 페이지 수 (테스트용)}';
 
     protected $description = '공공데이터포털 오픈 API 로 지역 통계를 수집해 저장합니다.';
@@ -18,7 +19,7 @@ class SyncOpenDataCommand extends Command
     public function handle(DatasetSynchronizer $synchronizer, PublicDataClient $client): int
     {
         $type = $this->argument('type');
-        $baseYm = $this->option('ym') ?: now()->subMonth()->format('Ym');
+        $period = Period::parse($this->option('ym') ?: now()->subMonth()->format('Ym'));
         $pages = $this->option('pages') ? (int) $this->option('pages') : null;
 
         if (! $client->hasKey()) {
@@ -30,12 +31,12 @@ class SyncOpenDataCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info("[{$type}] {$baseYm} 수집을 시작합니다…");
+        $this->info("[{$type}] {$period->label()} 수집을 시작합니다…");
 
         try {
             $result = $synchronizer->sync(
                 $type,
-                $baseYm,
+                $period,
                 [],
                 fn (string $message) => $this->line('  '.$message),
                 $pages

@@ -2,7 +2,7 @@
 
 @section('title', '데이터 현황')
 @section('heading', '데이터 현황')
-@section('subheading', '어떤 통계가 어느 기준월까지 쌓여 있는지 확인합니다.')
+@section('subheading', '어떤 통계가 어느 기간까지 쌓여 있는지 확인합니다.')
 
 @section('content')
 <div class="space-y-6">
@@ -29,8 +29,8 @@
                         <th>테이블</th>
                         <th class="!text-right">행 수</th>
                         <th class="!text-right">수록 행정동</th>
-                        <th class="!text-right">최초 기준월</th>
-                        <th class="!text-right">최신 기준월</th>
+                        <th class="!text-right">기간 수</th>
+                        <th class="!text-right">최신 기준</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -40,8 +40,8 @@
                             <td class="font-mono text-[12px] text-ink-400">{{ $row['table'] }}</td>
                             <td class="num">{{ number_format($row['rows']) }}</td>
                             <td class="num">{{ number_format($row['regions']) }}</td>
-                            <td class="num">{{ $row['oldest_ym'] ?? '-' }}</td>
-                            <td class="num font-bold text-ink-900">{{ $row['latest_ym'] ?? '-' }}</td>
+                            <td class="num">{{ number_format($row['periods']) }}</td>
+                            <td class="num font-bold text-ink-900">{{ $row['latest'] }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -54,20 +54,44 @@
             <h2 class="text-[16px] font-extrabold text-ink-900">수집 방법</h2>
             <p class="mt-2 text-[13px] leading-relaxed text-ink-500">
                 아래 명령을 프로젝트 루트에서 실행하면 통계가 같은 스키마로 적재됩니다.
-                같은 기준월의 기존 행은 덮어써집니다.
+                같은 지역·같은 기간의 기존 행은 덮어써집니다.
             </p>
 
-            <div class="mt-4 space-y-3">
+            <div class="mt-4 space-y-4">
                 <div>
-                    <p class="text-[12px] font-bold text-ink-700">오픈 API 수집</p>
-                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan opendata:sync floating_population --ym=202608
-php artisan opendata:sync card_sales --ym=202608</code></pre>
+                    <p class="text-[12px] font-bold text-ink-700">
+                        서울시 상권분석서비스 (분기 단위)
+                        <span class="ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold
+                            {{ $hasSeoulKey ? 'bg-brand-50 text-brand-600' : 'bg-amber-50 text-amber-700' }}">
+                            {{ $hasSeoulKey ? '인증키 설정됨' : '인증키 없음' }}
+                        </span>
+                    </p>
+                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan seoul:sync all --yq=20242</code></pre>
+                    <p class="mt-2 text-[12px] leading-relaxed text-ink-400">
+                        인증키 1개로 아래 서비스를 모두 씁니다 (API 별 활용신청 없음).<br>
+                        @foreach ($seoulDatasets as $key => $definition)
+                            <span class="font-mono">{{ $definition['service'] }}</span> {{ $definition['label'] }}@if (! $loop->last) · @endif
+                        @endforeach
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-[12px] font-bold text-ink-700">
+                        상가(상권)정보
+                        <span class="ml-1.5 text-[11px] font-normal text-ink-400">점포 {{ number_format($storeCount) }}건 적재됨</span>
+                    </p>
+                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan sbiz:sync-stores --sido=서울특별시 --sigungu=강서구</code></pre>
+                    <p class="mt-2 text-[12px] leading-relaxed text-ink-400">
+                        data.go.kr 활용신청이 필요합니다 (자동승인).
+                    </p>
                 </div>
 
                 <div>
                     <p class="text-[12px] font-bold text-ink-700">CSV 파일데이터 적재</p>
-                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan opendata:import card_sales storage/app/seed/sales.csv --ym=202608</code></pre>
+                    <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-900 px-4 py-3 text-[12px] leading-relaxed text-white"><code>php artisan opendata:import card_sales &lt;파일.csv&gt; --ym=202608
+php artisan opendata:import card_sales &lt;파일.csv&gt; --ym=20242</code></pre>
                     <p class="mt-2 text-[12px] leading-relaxed text-ink-400">
+                        6자리는 월(YYYYMM), 5자리는 분기(YYYYQ)로 해석합니다.<br>
                         사용 가능한 종류: {{ implode(', ', $importTypes) }}
                     </p>
                 </div>
@@ -77,7 +101,7 @@ php artisan opendata:sync card_sales --ym=202608</code></pre>
         <section class="card-pad">
             <h2 class="text-[16px] font-extrabold text-ink-900">데이터 출처</h2>
             <table class="table-report mt-4">
-                <thead><tr><th>데이터</th><th>출처</th><th class="!text-right">기준월</th></tr></thead>
+                <thead><tr><th>데이터</th><th>출처</th><th class="!text-right">기준 기간</th></tr></thead>
                 <tbody>
                     @foreach ($sources as $source)
                         <tr>
@@ -100,7 +124,7 @@ php artisan opendata:sync card_sales --ym=202608</code></pre>
                 <table class="table-report">
                     <thead>
                         <tr>
-                            <th>종류</th><th>경로</th><th>기준월</th>
+                            <th>종류</th><th>경로</th><th>기준 기간</th>
                             <th class="!text-right">저장</th><th class="!text-right">제외</th>
                             <th>상태</th><th class="!text-right">시각</th>
                         </tr>
@@ -110,7 +134,7 @@ php artisan opendata:sync card_sales --ym=202608</code></pre>
                             <tr>
                                 <td class="font-semibold text-ink-900">{{ $log->type }}</td>
                                 <td class="max-w-[220px] truncate text-[12px] text-ink-400">{{ $log->reference }}</td>
-                                <td>{{ $log->base_ym ?? '-' }}</td>
+                                <td>{{ $log->base_yq ?: ($log->base_ym ?: '-') }}</td>
                                 <td class="num">{{ number_format($log->rows_imported) }}</td>
                                 <td class="num">{{ number_format($log->rows_skipped) }}</td>
                                 <td>

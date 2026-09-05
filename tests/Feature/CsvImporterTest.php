@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\OpenData\CsvImporter;
+use App\Support\Period;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -110,7 +111,7 @@ class CsvImporterTest extends TestCase
         1150053000,202608,아파트,100
         CSV);
 
-        app(CsvImporter::class)->import('households', $path, '202608');
+        app(CsvImporter::class)->import('households', $path, Period::month('202608'));
 
         $log = DB::table('data_import_logs')->first();
 
