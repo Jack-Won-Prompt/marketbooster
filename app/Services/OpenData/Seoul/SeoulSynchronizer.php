@@ -17,6 +17,9 @@ use RuntimeException;
  */
 class SeoulSynchronizer
 {
+    /** 한 번에 펼쳐서 적재할 원본 행 수 (메모리 사용량을 이 값이 좌우한다) */
+    private const TRANSFORM_CHUNK = 50;
+
     public function __construct(
         private readonly SeoulOpenApiClient $client,
         private readonly DatasetWriter $writer,
@@ -26,7 +29,7 @@ class SeoulSynchronizer
      * @param  callable(string): void|null  $progress
      * @return array{received:int, imported:array<string,int>, skipped:int}
      */
-    public function sync(string $type, Period $period, ?callable $progress = null, ?int $maxPages = null): array
+    public function sync(string $type, Period $period, ?callable $progress = null, ?int $maxPages = null, bool $allPeriods = false): array
     {
         $definition = config("seoul.datasets.{$type}");
 
@@ -51,34 +54,55 @@ class SeoulSynchronizer
             $received = $this->client->each(
                 $definition['service'],
                 $period,
-                function (array $rows, int $page) use ($transformer, $period, &$imported, &$skipped, $progress) {
-                    $buckets = [];
+                function (array $rows, int $page) use ($transformer, $period, $allPeriods, &$imported, &$skipped, $progress) {
+                    $written = [];
 
-                    foreach ($rows as $row) {
-                        foreach ($transformer->transform($row, $period) as $bucket => $bucketRows) {
-                            foreach ($bucketRows as $bucketRow) {
-                                $buckets[$bucket][] = $bucketRow;
+                    /*
+                     * 변환기는 원본 1행을 최대 120행(시간대 5 × 요일 2 × 성별 2 × 연령 6)으로 편다.
+                     * 한 페이지(1,000행)를 통째로 펼치면 12만 행이 메모리에 쌓이므로 잘게 나눠 쓴다.
+                     */
+                    foreach (array_chunk($rows, self::TRANSFORM_CHUNK) as $chunk) {
+                        $buckets = [];
+
+                        foreach ($chunk as $row) {
+                            // 행에 실린 분기를 기준으로 삼는다. 요청 분기를 그대로 찍으면
+                            // 필터를 무시하는 서비스에서 다른 분기 값이 요청 분기로 둔갑한다.
+                            $rowPeriod = $transformer->periodOf($row, $period);
+
+                            if (! $allPeriods && ! $rowPeriod->equals($period)) {
+                                $skipped++;
+
+                                continue;
+                            }
+
+                            foreach ($transformer->transform($row, $rowPeriod) as $bucket => $bucketRows) {
+                                foreach ($bucketRows as $bucketRow) {
+                                    $buckets[$bucket][] = $bucketRow;
+                                }
                             }
                         }
-                    }
 
-                    foreach ($buckets as $bucket => $bucketRows) {
-                        if ($bucket === 'industries') {
-                            $this->upsertIndustries($bucketRows);
+                        foreach ($buckets as $bucket => $bucketRows) {
+                            if ($bucket === 'industries') {
+                                $this->upsertIndustries($bucketRows);
 
-                            continue;
+                                continue;
+                            }
+
+                            $result = $this->writer->write($bucket, $bucketRows);
+                            $imported[$bucket] = ($imported[$bucket] ?? 0) + $result['imported'];
+                            $written[$bucket] = ($written[$bucket] ?? 0) + $result['imported'];
+                            $skipped += $result['skipped'];
                         }
 
-                        $result = $this->writer->write($bucket, $bucketRows);
-                        $imported[$bucket] = ($imported[$bucket] ?? 0) + $result['imported'];
-                        $skipped += $result['skipped'];
+                        unset($buckets);
                     }
 
                     $progress && $progress(sprintf(
                         '%d페이지 처리: 원본 %s행 → %s',
                         $page,
                         number_format(count($rows)),
-                        collect($buckets)->map(fn ($r, $k) => "{$k} ".number_format(count($r)).'건')->implode(', ')
+                        collect($written)->map(fn ($n, $k) => "{$k} ".number_format($n).'건')->implode(', ')
                     ));
                 },
                 $maxPages

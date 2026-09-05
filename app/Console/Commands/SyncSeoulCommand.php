@@ -12,12 +12,16 @@ class SyncSeoulCommand extends Command
     protected $signature = 'seoul:sync
         {type=all : floating_population|card_sales|resident_population|workplace_population|all}
         {--yq= : 기준 연분기 YYYYQ (기본: 직전 분기)}
-        {--pages= : 최대 페이지 수 (테스트용)}';
+        {--pages= : 최대 페이지 수 (테스트용)}
+        {--all-periods : 응답에 섞여 오는 다른 분기까지 모두 적재}';
 
     protected $description = '서울시 상권분석서비스(행정동)를 수집해 통계 테이블에 적재합니다.';
 
     public function handle(SeoulSynchronizer $synchronizer, SeoulOpenApiClient $client): int
     {
+        // 가로형 한 행이 최대 120행으로 펴지므로 여유를 둔다.
+        ini_set("memory_limit", "512M");
+
         if (! $client->hasKey()) {
             $this->error('SEOUL_OPENAPI_KEY 가 비어 있습니다.');
             $this->line('  1) https://data.seoul.go.kr 로그인 후 [일반 인증키]를 발급받으세요.');
@@ -51,7 +55,8 @@ class SyncSeoulCommand extends Command
                     $type,
                     $period,
                     fn (string $message) => $this->line('  '.$message),
-                    $pages
+                    $pages,
+                    (bool) $this->option("all-periods")
                 );
             } catch (\Throwable $e) {
                 $this->error('  '.$e->getMessage());

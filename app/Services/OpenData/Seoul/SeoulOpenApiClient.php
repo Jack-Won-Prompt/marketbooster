@@ -67,6 +67,9 @@ class SeoulOpenApiClient
         );
 
         $response = Http::timeout($this->timeout)
+            // 서울 API 는 Content-Encoding 헤더에 압축방식이 아니라 'UTF-8' 을 실어 보낸다.
+            // curl 이 이걸 압축으로 해석하려다 실패하므로(cURL error 61) 자동 해제를 끈다.
+            ->withOptions(['decode_content' => false])
             ->retry(3, 400, throw: false)
             ->get($url);
 

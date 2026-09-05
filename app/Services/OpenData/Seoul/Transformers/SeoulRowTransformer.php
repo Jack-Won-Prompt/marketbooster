@@ -51,6 +51,11 @@ abstract class SeoulRowTransformer
      */
     abstract public function transform(array $row, Period $period): array;
 
+    /**
+     * 숫자 값을 읽는다.
+     * 서울 API 는 큰 금액을 지수 표기(3.609852542E9)로 내려보내므로
+     * 기호를 먼저 지우면 안 된다. 숫자로 해석되면 그대로 캐스팅한다.
+     */
     protected function num(array $row, string $key): float
     {
         $value = $row[$key] ?? null;
@@ -59,7 +64,26 @@ abstract class SeoulRowTransformer
             return 0.0;
         }
 
+        if (is_int($value) || is_float($value) || is_numeric($value)) {
+            return (float) $value;
+        }
+
         return (float) preg_replace('/[^0-9.\-]/', '', (string) $value);
+    }
+
+    /**
+     * 이 행이 실제로 어느 분기의 값인지 읽는다.
+     *
+     * 서울 API 는 서비스마다 분기 필터(STDR_YYQU_CD)를 지키기도 하고 무시하기도 한다.
+     * (2026-09 확인: 추정매출·직장인구는 적용, 상주인구·길단위인구는 무시하고 전 분기를 준다)
+     * 요청 분기를 그대로 찍으면 다른 분기 값이 요청 분기로 둔갑하므로,
+     * 반드시 행에 실린 값을 기준으로 삼는다.
+     */
+    public function periodOf(array $row, Period $fallback): Period
+    {
+        $code = preg_replace('/\D/', '', (string) ($row['STDR_YYQU_CD'] ?? ''));
+
+        return preg_match('/^\d{4}[1-4]$/', $code) ? Period::quarter($code) : $fallback;
     }
 
     protected function regionCode(array $row): ?string

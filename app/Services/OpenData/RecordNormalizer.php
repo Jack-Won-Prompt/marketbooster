@@ -86,9 +86,16 @@ class RecordNormalizer
         }
 
         foreach (['population', 'sales_amount', 'sales_count', 'households', 'student_count', 'academy_count'] as $numeric) {
-            if (array_key_exists($numeric, $row)) {
-                $row[$numeric] = (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) $row[$numeric]));
+            if (! array_key_exists($numeric, $row)) {
+                continue;
             }
+
+            $value = $row[$numeric];
+
+            // 지수 표기(3.6E9)를 기호부터 지우면 값이 망가지므로 숫자면 그대로 캐스팅한다.
+            $row[$numeric] = is_numeric($value)
+                ? (int) round((float) $value)
+                : (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) $value));
         }
 
         return $row;
