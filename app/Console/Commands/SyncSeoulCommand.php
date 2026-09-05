@@ -21,7 +21,7 @@ class SyncSeoulCommand extends Command
         if (! $client->hasKey()) {
             $this->error('SEOUL_OPENAPI_KEY 가 비어 있습니다.');
             $this->line('  1) https://data.seoul.go.kr 로그인 후 [일반 인증키]를 발급받으세요.');
-            $this->line('     https://data.seoul.go.kr/together/mypage/actKeyMain.do');
+            $this->line('     https://data.seoul.go.kr/together/mypage/actkeyMain.do');
             $this->line('  2) .env 의 SEOUL_OPENAPI_KEY 에 넣고 php artisan config:clear 를 실행하세요.');
             $this->newLine();
             $this->line('  ※ 서울 열린데이터광장은 API 별 활용신청이 없습니다. 인증키 하나로 아래 서비스를 모두 씁니다.');

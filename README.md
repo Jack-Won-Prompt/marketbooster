@@ -111,7 +111,7 @@ npm run dev            # 프런트엔드 개발 서버(HMR)
 반면 **서울 열린데이터광장**에는 행정동 단위로 필요한 지표가 모두 있고,
 행정동 코드가 행정안전부 주민등록 행정기관코드라 `regions.code` 와 그대로 맞습니다.
 
-**API 별 활용신청이 없습니다.** [일반 인증키](https://data.seoul.go.kr/together/mypage/actKeyMain.do)
+**API 별 활용신청이 없습니다.** [일반 인증키](https://data.seoul.go.kr/together/mypage/actkeyMain.do)
 하나만 발급받으면 아래 서비스를 모두 호출할 수 있습니다.
 
 | 내부 데이터 | 서비스명 | 데이터셋 |
@@ -127,6 +127,7 @@ SEOUL_OPENAPI_KEY=발급받은_일반_인증키
 
 ```bash
 php artisan config:clear
+php artisan opendata:check                # 키가 실제로 통하는지 먼저 확인
 php artisan seoul:sync all --yq=20242     # 2024년 2분기
 php artisan seoul:sync card_sales --yq=20243
 ```

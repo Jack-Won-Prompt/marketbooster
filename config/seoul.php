@@ -12,7 +12,7 @@ return [
     |--------------------------------------------------------------------------
     | data.go.kr 과 달리 API 별 활용신청이 없다. "일반 인증키" 하나를 발급받으면
     | 아래 서비스를 모두 호출할 수 있다.
-    |   발급: https://data.seoul.go.kr/together/mypage/actKeyMain.do
+    |   발급: https://data.seoul.go.kr/together/mypage/actkeyMain.do
     |
     | 요청 형식 (인증키가 쿼리스트링이 아니라 경로에 들어간다)
     |   {base}/{KEY}/json/{SERVICE}/{START_INDEX}/{END_INDEX}/{STDR_YYQU_CD}
