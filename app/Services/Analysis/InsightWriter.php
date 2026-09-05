@@ -176,20 +176,29 @@ class InsightWriter
 
         if (($stores['franchise_total'] ?? 0) > 0) {
             $lines[] = sprintf(
-                '프랜차이즈로 확인된 점포는 %s개로 전체의 %s%%입니다. %s',
+                '이름이 확인된 프랜차이즈 점포는 %s개로 전체의 %s%%이고, 여러 동네에 반복되는 다점포 상호가 %s개 더 있습니다. %s',
                 number_format($stores['franchise_total']),
                 number_format($franchiseShare, 1),
-                $franchiseShare >= 20
+                number_format($stores['chain_total'] ?? 0),
+                $franchiseShare >= 8
                     ? '브랜드 점포 비중이 높아 이미 검증된 상권으로 볼 수 있습니다.'
                     : '브랜드 점포 비중이 낮아 개인 점포 중심의 상권입니다.'
             );
         }
 
-        $topBrands = array_slice($stores['brands'] ?? [], 0, 3);
+        // 이름이 확실한 프랜차이즈만 문장에 쓴다. 다점포 상호에는 일반 명사가 섞인다.
+        $topBrands = array_slice(
+            array_values(array_filter(
+                $stores['brands'] ?? [],
+                fn (array $b) => ($b['source'] ?? 'franchise') === 'franchise'
+            )),
+            0,
+            3
+        );
 
         if ($topBrands !== []) {
             $lines[] = sprintf(
-                '매장이 많은 브랜드는 %s 입니다.',
+                '매장이 많은 프랜차이즈는 %s 입니다.',
                 implode(', ', array_map(
                     fn (array $b) => sprintf('%s(%s개·%s)', $b['name'], number_format($b['count']), $b['sector_name']),
                     $topBrands

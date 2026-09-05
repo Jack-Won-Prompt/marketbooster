@@ -382,11 +382,78 @@ class StatisticsRepository
     }
 
     /**
-     * 점포 프로필 — 분야 · 업종 · 프랜차이즈를 한 번에 집계한다.
+     * 항목별로 "선택 범위 중 몇 퍼센트가 수록돼 있는지".
+     *
+     * 서울과 경기가 함께 걸리는 반경이 실제로 자주 나온다. 이때 유동인구는
+     * 서울 쪽 행정동에서만 잡히므로 합계가 범위 전체를 대표하지 못한다.
+     * 있음/없음만으로는 이 차이가 드러나지 않아 면적 비중까지 함께 낸다.
+     *
+     * @param  array<string, float>  $weights
+     * @return array<string, float>  0.0 ~ 1.0
+     */
+    public function coverageRatio(array $weights, Period $period): array
+    {
+        $codes = array_keys($weights);
+        $total = array_sum($weights);
+
+        if ($total <= 0) {
+            return [];
+        }
+
+        $tables = [
+            'resident' => 'resident_populations',
+            'households' => 'households',
+            'workplace' => 'workplace_populations',
+            'floating' => 'floating_populations',
+            'sales' => 'card_sales',
+            'students' => 'students',
+            'academies' => 'academies',
+        ];
+
+        $ratios = [];
+
+        foreach ($tables as $key => $table) {
+            $present = DB::table($table)
+                ->whereIn('region_code', $codes)
+                ->where($period->filterColumn(), $period->code)
+                ->distinct()
+                ->pluck('region_code');
+
+            $ratios[$key] = $this->weightShare($present, $weights, $total);
+        }
+
+        $stores = DB::table('stores')->whereIn('region_code', $codes)->distinct()->pluck('region_code');
+        $ratios['stores'] = $this->weightShare($stores, $weights, $total);
+
+        return $ratios;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, string>  $codes
+     * @param  array<string, float>  $weights
+     */
+    private function weightShare($codes, array $weights, float $total): float
+    {
+        $covered = 0.0;
+
+        foreach ($codes as $code) {
+            $covered += $weights[$code] ?? 0;
+        }
+
+        return round(min(1.0, $covered / $total), 4);
+    }
+
+    /**
+     * 점포 프로필 — 분야 · 업종 · 브랜드를 한 번에 집계한다.
      *
      * 카드매출이 없는 지역에서 상권의 성격을 읽을 수 있는 거의 유일한 실측 자료라,
-     * 분야(식당·카페/디저트 …)와 프랜차이즈 브랜드까지 함께 낸다.
+     * 분야(식당·카페/디저트 …)와 브랜드까지 함께 낸다.
      * 반경 분석에서는 행정동 겹침 비율만큼 안분한다.
+     *
+     * 브랜드는 두 종류를 구분한다.
+     *   프랜차이즈  — 등록된 사전에서 이름까지 확인한 것
+     *   다점포 상호 — 사전에 없지만 여러 행정동에 반복되는 상호 (지역 체인)
+     * 섞어서 "프랜차이즈"라고 부르면 "입주청소" 같은 일반 명사까지 브랜드가 된다.
      *
      * @param  array<string, float>  $weights
      */
@@ -394,11 +461,11 @@ class StatisticsRepository
     {
         $rows = DB::table('stores')
             ->select(
-                'region_code', 'sector', 'large_name', 'middle_name', 'brand',
+                'region_code', 'sector', 'large_name', 'middle_name', 'brand', 'brand_source',
                 DB::raw('COUNT(*) AS cnt')
             )
             ->whereIn('region_code', array_keys($weights))
-            ->groupBy('region_code', 'sector', 'large_name', 'middle_name', 'brand')
+            ->groupBy('region_code', 'sector', 'large_name', 'middle_name', 'brand', 'brand_source')
             ->get();
 
         $bySector = [];
@@ -407,6 +474,7 @@ class StatisticsRepository
         $brands = [];
         $total = 0.0;
         $franchiseTotal = 0.0;
+        $chainTotal = 0.0;
 
         foreach ($rows as $row) {
             $weighted = $row->cnt * ($weights[$row->region_code] ?? 0);
@@ -416,7 +484,12 @@ class StatisticsRepository
             $large = $row->large_name ?: '기타';
             $middle = $row->middle_name ?: $large;
 
-            $bySector[$sector] ??= ['code' => $sector, 'name' => StoreSectors::label($sector), 'count' => 0.0, 'franchises' => 0.0];
+            $bySector[$sector] ??= [
+                'code' => $sector,
+                'name' => StoreSectors::label($sector),
+                'count' => 0.0,
+                'franchises' => 0.0,
+            ];
             $bySector[$sector]['count'] += $weighted;
 
             $byLarge[$large] ??= ['name' => $large, 'count' => 0.0];
@@ -425,19 +498,30 @@ class StatisticsRepository
             $byMiddle[$middle] ??= ['name' => $middle, 'large' => $large, 'count' => 0.0];
             $byMiddle[$middle]['count'] += $weighted;
 
-            if ($row->brand) {
+            if (! $row->brand) {
+                continue;
+            }
+
+            $isFranchise = $row->brand_source === 'dictionary';
+
+            if ($isFranchise) {
                 $franchiseTotal += $weighted;
                 $bySector[$sector]['franchises'] += $weighted;
-
-                $key = $row->brand;
-                $brands[$key] ??= [
-                    'name' => $key,
-                    'sector' => $sector,
-                    'sector_name' => StoreSectors::label($sector),
-                    'count' => 0.0,
-                ];
-                $brands[$key]['count'] += $weighted;
+            } else {
+                $chainTotal += $weighted;
             }
+
+            $key = $row->brand;
+            $brands[$key] ??= [
+                'name' => $key,
+                'source' => $isFranchise ? 'franchise' : 'chain',
+                'source_label' => $isFranchise ? '프랜차이즈' : '다점포 상호',
+                'count' => 0.0,
+                // 같은 브랜드가 여러 업종으로 흩어져 들어오므로 가장 많은 쪽을 대표로 삼는다.
+                'sector_counts' => [],
+            ];
+            $brands[$key]['count'] += $weighted;
+            $brands[$key]['sector_counts'][$sector] = ($brands[$key]['sector_counts'][$sector] ?? 0) + $weighted;
         }
 
         $rank = function (array $items, ?int $take) use ($total) {
@@ -461,9 +545,18 @@ class StatisticsRepository
             return $take ? array_slice($items, 0, $take) : $items;
         };
 
-        $sectors = $rank($bySector, null);
+        // 브랜드마다 대표 분야를 정한다. 업종이 갈려 들어와도 이름 옆 분야가 흔들리지 않게.
+        foreach ($brands as $key => $brand) {
+            arsort($brand['sector_counts']);
+            $sector = (string) array_key_first($brand['sector_counts']);
+            unset($brand['sector_counts']);
 
-        // 분야별 대표 브랜드 (분석서에서 "디저트는 어떤 브랜드가 많은가" 를 보게)
+            $brands[$key] = $brand + [
+                'sector' => $sector,
+                'sector_name' => StoreSectors::label($sector),
+            ];
+        }
+
         $rankedBrands = $rank($brands, null);
         $brandsBySector = [];
 
@@ -475,7 +568,9 @@ class StatisticsRepository
             'total' => (int) round($total),
             'franchise_total' => (int) round($franchiseTotal),
             'franchise_share' => $total > 0 ? round($franchiseTotal / $total * 100, 1) : 0.0,
-            'by_sector' => $sectors,
+            'chain_total' => (int) round($chainTotal),
+            'chain_share' => $total > 0 ? round($chainTotal / $total * 100, 1) : 0.0,
+            'by_sector' => $rank($bySector, null),
             'by_large' => $rank($byLarge, $limit),
             'by_middle' => $rank($byMiddle, $limit),
             'brands' => array_slice($rankedBrands, 0, 40),

@@ -37,6 +37,7 @@ class MarketAnalyzer
         $period = $analysis->period();
         $reportDate = Carbon::now()->format('Y/m/d');
         $coverage = $this->stats->coverage($weights, $period);
+        $coverageRatio = $this->stats->coverageRatio($weights, $period);
 
         if (! in_array(true, $coverage, true)) {
             $sidoName = $resolved->first()['region']->sido_name;
@@ -60,7 +61,10 @@ class MarketAnalyzer
         $education = $this->buildEducation($weights, $period);
 
         return [
-            'meta' => $this->buildMeta($analysis, $resolved, $period) + ['coverage' => $coverage],
+            'meta' => $this->buildMeta($analysis, $resolved, $period) + [
+                'coverage' => $coverage,
+                'coverage_ratio' => $coverageRatio,
+            ],
             'summary' => $summary + ['insights' => $this->insights->population($summary, $reportDate)],
             'resident' => $resident,
             'households' => $households + [

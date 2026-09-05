@@ -20,8 +20,15 @@ use Illuminate\Support\Facades\DB;
  */
 class StoreClassifier
 {
-    /** 사전에 없는 상호를 체인으로 볼 최소 행정동 수 */
-    public const CHAIN_MIN_DONGS = 3;
+    /**
+     * 사전에 없는 상호를 체인으로 볼 기준.
+     *
+     * 낮게 잡으면 "입주청소" · "우리마트" 같은 일반 명사가 브랜드로 둔갑한다.
+     * 행정동 수와 점포 수를 함께 요구해 한 동네에 몰려 있는 상호를 걸러 낸다.
+     */
+    public const CHAIN_MIN_DONGS = 5;
+
+    public const CHAIN_MIN_STORES = 10;
 
     /**
      * @return array{sectors:int, dictionary:int, chains:int, brands:int}
@@ -81,13 +88,14 @@ class StoreClassifier
         $seen = 0;
 
         DB::table('stores')
-            ->select('id', 'name')
+            ->select('id', 'name', 'sector')
             ->whereNull('brand')
             ->orderBy('id')
             ->chunk(5000, function ($rows) use (&$byBrand, &$seen, $progress) {
                 foreach ($rows as $row) {
                     $seen++;
-                    $matched = Franchises::match($row->name);
+                    // 업종을 함께 넘겨야 "씨유헤어" 가 CU 편의점으로 잡히지 않는다.
+                    $matched = Franchises::match($row->name, $row->sector);
 
                     if ($matched !== null) {
                         $byBrand[$matched[0]][] = $row->id;
@@ -103,7 +111,7 @@ class StoreClassifier
             foreach (array_chunk($ids, 1000) as $chunk) {
                 $updated += DB::table('stores')
                     ->whereIn('id', $chunk)
-                    ->update(['brand' => $brand, 'is_franchise' => true]);
+                    ->update(['brand' => $brand, 'is_franchise' => true, 'brand_source' => 'dictionary']);
             }
         }
 
@@ -126,7 +134,10 @@ class StoreClassifier
             ->whereNull('brand')
             ->whereNotNull('name')
             ->groupBy('name')
-            ->havingRaw('COUNT(DISTINCT region_code) >= ?', [self::CHAIN_MIN_DONGS])
+            ->havingRaw(
+                'COUNT(DISTINCT region_code) >= ? AND COUNT(*) >= ?',
+                [self::CHAIN_MIN_DONGS, self::CHAIN_MIN_STORES]
+            )
             ->pluck('name');
 
         $usable = $names->filter(fn (string $name) => Franchises::isUsableName($name))->values();
@@ -136,7 +147,7 @@ class StoreClassifier
             $updated += DB::table('stores')
                 ->whereNull('brand')
                 ->whereIn('name', $chunk->all())
-                ->update(['brand' => DB::raw('name'), 'is_franchise' => true]);
+                ->update(['brand' => DB::raw('name'), 'is_franchise' => false, 'brand_source' => 'chain']);
         }
 
         $progress && $progress(sprintf('데이터로 찾은 체인 %s개 / %s건', number_format($usable->count()), number_format($updated)));
@@ -152,12 +163,14 @@ class StoreClassifier
      */
     public static function forRow(?string $name, ?string $large, ?string $middle, ?string $small): array
     {
-        $matched = Franchises::match($name);
+        $sector = StoreSectors::resolve($large, $middle, $small);
+        $matched = Franchises::match($name, $sector);
 
         return [
-            'sector' => StoreSectors::resolve($large, $middle, $small),
+            'sector' => $sector,
             'brand' => $matched[0] ?? null,
             'is_franchise' => $matched !== null,
+            'brand_source' => $matched !== null ? 'dictionary' : null,
         ];
     }
 

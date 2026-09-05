@@ -16,12 +16,16 @@ namespace App\Support;
 class Franchises
 {
     /**
-     * 대표 브랜드명 => [분야, 상호에서 찾을 패턴들]
+     * 대표 브랜드명 => [대표 분야, 상호에서 찾을 패턴들, 추가로 허용할 분야들]
      *
      * 패턴은 공백·기호를 없애고 영문을 대문자로 바꾼 상호와 대조한다.
      * 긴 패턴이 먼저 걸리도록 매칭 시 길이순으로 정렬한다.
      *
-     * @var array<string, array{0: string, 1: array<int, string>}>
+     * 세 번째 값(추가 허용 분야)이 있는 이유는 같은 브랜드가 업종코드에서
+     * 갈려 들어오기 때문이다. 치킨집은 "치킨"과 "한식"에 나뉘고, 빵집은
+     * "빵/도넛"과 "식품 소매"에 나뉜다.
+     *
+     * @var array<string, array{0: string, 1: array<int, string>, 2?: array<int, string>}>
      */
     public const BRANDS = [
         // ── 카페 · 디저트 ──────────────────────────────────────
@@ -39,55 +43,55 @@ class Franchises
         '탐앤탐스' => ['cafe_dessert', ['탐앤탐스', 'TOMNTOMS']],
         '파스쿠찌' => ['cafe_dessert', ['파스쿠찌']],
         '엔제리너스' => ['cafe_dessert', ['엔제리너스']],
-        '파리바게뜨' => ['cafe_dessert', ['파리바게뜨', '파리바게트', 'PARISBAGUETTE']],
-        '뚜레쥬르' => ['cafe_dessert', ['뚜레쥬르', 'TOUSLESJOURS']],
-        '배스킨라빈스' => ['cafe_dessert', ['배스킨라빈스', '베스킨라빈스', '배스킨', 'BASKINROBBINS']],
-        '설빙' => ['cafe_dessert', ['설빙']],
+        '파리바게뜨' => ['cafe_dessert', ['파리바게뜨', '파리바게트', 'PARISBAGUETTE'], ['food_retail']],
+        '뚜레쥬르' => ['cafe_dessert', ['뚜레쥬르', 'TOUSLESJOURS'], ['food_retail']],
+        '배스킨라빈스' => ['cafe_dessert', ['배스킨라빈스', '베스킨라빈스', '배스킨', 'BASKINROBBINS'], ['food_retail']],
+        '설빙' => ['cafe_dessert', ['설빙'], ['restaurant']],
         '요거트월드' => ['cafe_dessert', ['요거트월드']],
         '던킨' => ['cafe_dessert', ['던킨', 'DUNKIN']],
         '공차' => ['cafe_dessert', ['공차', 'GONGCHA']],
 
         // ── 치킨 ──────────────────────────────────────────────
-        'BBQ치킨' => ['fastfood', ['비비큐', 'BBQ']],
-        'BHC치킨' => ['fastfood', ['비에이치씨', 'BHC']],
-        '교촌치킨' => ['fastfood', ['교촌']],
-        '굽네치킨' => ['fastfood', ['굽네']],
-        '네네치킨' => ['fastfood', ['네네치킨']],
-        '처갓집양념치킨' => ['fastfood', ['처갓집']],
-        '페리카나' => ['fastfood', ['페리카나']],
-        '호식이두마리치킨' => ['fastfood', ['호식이']],
-        '자담치킨' => ['fastfood', ['자담치킨']],
-        '보드람치킨' => ['fastfood', ['보드람']],
-        '또래오래' => ['fastfood', ['또래오래']],
-        '노랑통닭' => ['fastfood', ['노랑통닭']],
-        '가마치통닭' => ['fastfood', ['가마치']],
-        '또봉이통닭' => ['fastfood', ['또봉이']],
-        '멕시카나' => ['fastfood', ['멕시카나', '멕시칸']],
-        '지코바' => ['fastfood', ['지코바']],
-        '부어치킨' => ['fastfood', ['부어치킨']],
-        '푸라닭' => ['fastfood', ['푸라닭']],
-        '깐부치킨' => ['fastfood', ['깐부치킨']],
+        'BBQ치킨' => ['fastfood', ['비비큐', 'BBQ'], ['restaurant']],
+        'BHC치킨' => ['fastfood', ['비에이치씨', 'BHC'], ['restaurant']],
+        '교촌치킨' => ['fastfood', ['교촌'], ['restaurant']],
+        '굽네치킨' => ['fastfood', ['굽네'], ['restaurant']],
+        '네네치킨' => ['fastfood', ['네네치킨'], ['restaurant']],
+        '처갓집양념치킨' => ['fastfood', ['처갓집'], ['restaurant']],
+        '페리카나' => ['fastfood', ['페리카나'], ['restaurant']],
+        '호식이두마리치킨' => ['fastfood', ['호식이'], ['restaurant']],
+        '자담치킨' => ['fastfood', ['자담치킨'], ['restaurant']],
+        '보드람치킨' => ['fastfood', ['보드람'], ['restaurant']],
+        '또래오래' => ['fastfood', ['또래오래'], ['restaurant']],
+        '노랑통닭' => ['fastfood', ['노랑통닭'], ['restaurant']],
+        '가마치통닭' => ['fastfood', ['가마치'], ['restaurant']],
+        '또봉이통닭' => ['fastfood', ['또봉이'], ['restaurant']],
+        '멕시카나' => ['fastfood', ['멕시카나', '멕시칸'], ['restaurant']],
+        '지코바' => ['fastfood', ['지코바'], ['restaurant']],
+        '부어치킨' => ['fastfood', ['부어치킨'], ['restaurant']],
+        '푸라닭' => ['fastfood', ['푸라닭'], ['restaurant']],
+        '깐부치킨' => ['fastfood', ['깐부치킨'], ['restaurant']],
         '후라이드참잘하는집' => ['fastfood', ['후라이드참잘하는집']],
 
         // ── 버거 · 분식 · 간편식 ──────────────────────────────
-        '맘스터치' => ['fastfood', ['맘스터치']],
+        '맘스터치' => ['fastfood', ['맘스터치'], ['restaurant']],
         '롯데리아' => ['fastfood', ['롯데리아', 'LOTTERIA']],
         '맥도날드' => ['fastfood', ['맥도날드', 'MCDONALD']],
         '버거킹' => ['fastfood', ['버거킹', 'BURGERKING']],
         'KFC' => ['fastfood', ['KFC']],
         '노브랜드버거' => ['fastfood', ['노브랜드버거']],
         '서브웨이' => ['fastfood', ['서브웨이', 'SUBWAY']],
-        '이삭토스트' => ['fastfood', ['이삭토스트']],
-        '봉구스밥버거' => ['fastfood', ['봉구스']],
-        '김밥천국' => ['fastfood', ['김밥천국']],
-        '김가네' => ['fastfood', ['김가네']],
-        '바르다김선생' => ['fastfood', ['바르다김선생']],
-        '한솥도시락' => ['fastfood', ['한솥']],
-        '본도시락' => ['fastfood', ['본도시락']],
-        '신전떡볶이' => ['fastfood', ['신전떡볶이']],
-        '엽기떡볶이' => ['fastfood', ['엽기떡볶이']],
-        '배떡' => ['fastfood', ['배떡']],
-        '죠스떡볶이' => ['fastfood', ['죠스떡볶이']],
+        '이삭토스트' => ['fastfood', ['이삭토스트'], ['restaurant']],
+        '봉구스밥버거' => ['fastfood', ['봉구스'], ['restaurant']],
+        '김밥천국' => ['fastfood', ['김밥천국'], ['restaurant']],
+        '김가네' => ['fastfood', ['김가네'], ['restaurant']],
+        '바르다김선생' => ['fastfood', ['바르다김선생'], ['restaurant']],
+        '한솥도시락' => ['fastfood', ['한솥'], ['restaurant']],
+        '본도시락' => ['fastfood', ['본도시락'], ['restaurant']],
+        '신전떡볶이' => ['fastfood', ['신전떡볶이'], ['restaurant']],
+        '엽기떡볶이' => ['fastfood', ['엽기떡볶이'], ['restaurant']],
+        '배떡' => ['fastfood', ['배떡'], ['restaurant']],
+        '죠스떡볶이' => ['fastfood', ['죠스떡볶이'], ['restaurant']],
 
         // ── 피자 ──────────────────────────────────────────────
         '도미노피자' => ['fastfood', ['도미노피자', 'DOMINO']],
@@ -101,15 +105,15 @@ class Franchises
         '반올림피자' => ['fastfood', ['반올림피자']],
 
         // ── 식당 ──────────────────────────────────────────────
-        '본죽' => ['restaurant', ['본죽']],
+        '본죽' => ['restaurant', ['본죽'], ['fastfood']],
         '한촌설렁탕' => ['restaurant', ['한촌설렁탕']],
         '신선설농탕' => ['restaurant', ['신선설농탕']],
         '새마을식당' => ['restaurant', ['새마을식당']],
-        '홍콩반점0410' => ['restaurant', ['홍콩반점']],
-        '역전우동' => ['restaurant', ['역전우동']],
-        '유가네닭갈비' => ['restaurant', ['유가네']],
+        '홍콩반점0410' => ['restaurant', ['홍콩반점'], ['fastfood']],
+        '역전우동' => ['restaurant', ['역전우동'], ['fastfood']],
+        '유가네닭갈비' => ['restaurant', ['유가네'], ['fastfood']],
         'original불닭' => ['restaurant', ['오리지널불닭']],
-        '두찜' => ['restaurant', ['두찜']],
+        '두찜' => ['restaurant', ['두찜'], ['fastfood']],
         '명륜진사갈비' => ['restaurant', ['명륜진사갈비']],
         '하남돼지집' => ['restaurant', ['하남돼지집']],
         '연안식당' => ['restaurant', ['연안식당']],
@@ -126,11 +130,11 @@ class Franchises
         '와이키키브라더스' => ['pub', ['와이키키브라더스']],
 
         // ── 편의점 · 마트 ─────────────────────────────────────
-        'GS25' => ['convenience', ['지에스25', 'GS25']],
-        'CU' => ['convenience', ['씨유', 'CU편의점']],
-        '세븐일레븐' => ['convenience', ['세븐일레븐', '７ELEVEN', '7ELEVEN']],
-        '이마트24' => ['convenience', ['이마트24', 'EMART24']],
-        '노브랜드' => ['convenience', ['노브랜드']],
+        'GS25' => ['convenience', ['지에스25', 'GS25'], ['food_retail']],
+        'CU' => ['convenience', ['씨유', 'CU편의점'], ['food_retail']],
+        '세븐일레븐' => ['convenience', ['세븐일레븐', '７ELEVEN', '7ELEVEN'], ['food_retail']],
+        '이마트24' => ['convenience', ['이마트24', 'EMART24'], ['food_retail']],
+        '노브랜드' => ['convenience', ['노브랜드'], ['food_retail', 'retail_etc']],
 
         // ── 뷰티 · 헬스 ───────────────────────────────────────
         '올리브영' => ['beauty', ['올리브영', 'OLIVEYOUNG']],
@@ -195,9 +199,14 @@ class Franchises
     /**
      * 상호에서 사전에 등록된 브랜드를 찾는다.
      *
-     * @return array{0: string, 1: string}|null  [대표 브랜드명, 분야]
+     * $storeSector 를 함께 주면 그 브랜드가 있을 수 없는 업종은 걸러낸다.
+     * "씨유" 는 CU 편의점의 표기이지만 "씨유헤어" · "아이씨유" 같은 상호에도 들어 있어,
+     * 업종을 보지 않으면 미용실이 편의점 브랜드로 잡힌다.
+     *
+     * @param  string|null  $storeSector  점포의 분야(StoreSectors 코드). null 이면 검사하지 않는다.
+     * @return array{0: string, 1: string}|null  [대표 브랜드명, 브랜드의 대표 분야]
      */
-    public static function match(?string $name): ?array
+    public static function match(?string $name, ?string $storeSector = null): ?array
     {
         if (! self::isUsableName($name)) {
             return null;
@@ -206,12 +215,35 @@ class Franchises
         $normalized = self::normalize($name);
 
         foreach (self::patterns() as [$pattern, $brand, $sector]) {
-            if (str_contains($normalized, $pattern)) {
-                return [$brand, $sector];
+            if (! str_contains($normalized, $pattern)) {
+                continue;
             }
+
+            if ($storeSector !== null && ! self::allows($brand, $storeSector)) {
+                continue;
+            }
+
+            return [$brand, $sector];
         }
 
         return null;
+    }
+
+    /** 그 브랜드가 이 업종으로 들어올 수 있는가 */
+    public static function allows(string $brand, string $sector): bool
+    {
+        $definition = self::BRANDS[$brand] ?? null;
+
+        if ($definition === null) {
+            return true;
+        }
+
+        // 업종을 못 정한 점포(기타)는 막지 않는다. 코드가 비어 오는 행이 실제로 있다.
+        if ($sector === StoreSectors::UNKNOWN) {
+            return true;
+        }
+
+        return in_array($sector, array_merge([$definition[0]], $definition[2] ?? []), true);
     }
 
     /**
@@ -230,9 +262,9 @@ class Franchises
 
         $rows = [];
 
-        foreach (self::BRANDS as $brand => [$sector, $patterns]) {
-            foreach ($patterns as $pattern) {
-                $rows[] = [self::normalize($pattern), $brand, $sector];
+        foreach (self::BRANDS as $brand => $definition) {
+            foreach ($definition[1] as $pattern) {
+                $rows[] = [self::normalize($pattern), $brand, $definition[0]];
             }
         }
 

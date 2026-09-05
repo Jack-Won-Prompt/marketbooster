@@ -212,7 +212,7 @@ class StoreCollector
                 'name', 'branch_name', 'region_code', 'sido_name', 'sigungu_name', 'dong_name',
                 'large_code', 'large_name', 'middle_code', 'middle_name', 'small_code', 'small_name',
                 'road_address', 'lot_address', 'lat', 'lng', 'collected_at', 'updated_at',
-                'sector', 'brand', 'is_franchise',
+                'sector', 'brand', 'is_franchise', 'brand_source',
             ]);
         }
 

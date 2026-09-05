@@ -26,7 +26,7 @@ class ClassifyStoresCommand extends Command
 
         if ($this->option('reset')) {
             $this->line('기존 분류를 지웁니다…');
-            DB::table('stores')->update(['sector' => null, 'brand' => null, 'is_franchise' => false]);
+            DB::table('stores')->update(['sector' => null, 'brand' => null, 'is_franchise' => false, 'brand_source' => null]);
         }
 
         $this->info(sprintf('점포 %s건을 분류합니다…', number_format($total)));

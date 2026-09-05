@@ -308,15 +308,17 @@
 
                 <div class="mt-4" x-show="topBrands.length" x-cloak>
                     <div class="flex items-baseline justify-between">
-                        <p class="text-[12px] font-extrabold text-ink-900">프랜차이즈</p>
+                        <p class="text-[12px] font-extrabold text-ink-900">브랜드 점포</p>
                         <span class="text-[11px] text-ink-300"
-                              x-text="`${(report?.stores?.franchise_share ?? 0)}%`"></span>
+                              x-text="`프랜차이즈 ${(report?.stores?.franchise_share ?? 0)}%`"></span>
                     </div>
                     <div class="mt-2 flex flex-wrap gap-1.5">
                         <template x-for="b in topBrands" :key="b.name">
-                            <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-2.5 py-1 text-[11px] font-semibold text-ink-600">
+                            <span class="inline-flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-[11px] font-semibold"
+                                  :class="b.source === 'chain' ? 'border-line text-ink-400' : 'border-brand-200 text-ink-700'">
                                 <span x-text="b.name"></span>
-                                <span class="tabular-nums text-brand-600" x-text="b.count"></span>
+                                <span class="tabular-nums" :class="b.source === 'chain' ? 'text-ink-400' : 'text-brand-600'"
+                                      x-text="b.count"></span>
                             </span>
                         </template>
                     </div>

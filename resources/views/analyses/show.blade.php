@@ -9,6 +9,8 @@
     // 이 범위·기간에 실제로 수록된 통계. 예전에 만든 리포트에는 없으므로 없으면 모두 수록으로 본다.
     $coverage = $meta['coverage'] ?? [];
     $covered = fn (string $key) => ($coverage[$key] ?? true) === true;
+    // 범위 중 실제로 수록된 면적 비중. 서울·경기가 함께 걸리면 1 보다 작아진다.
+    $ratio = fn (string $key) => (float) ($meta['coverage_ratio'][$key] ?? 1);
     $noSource = ($meta['sido_name'] ?? '이 지역').' 은(는) 아직 이 항목을 행정동 단위로 공개하는 출처를 확보하지 못했습니다.';
 
     $money = fn ($amount) => $amount >= 100000000
@@ -68,6 +70,11 @@
                 <span class="chip">행정동 {{ count($meta['regions']) }}곳</span>
             </div>
         </div>
+
+        {{-- 서버에서 그린 지도. PDF 와 같은 그림이라 화면과 종이가 어긋나지 않는다. --}}
+        <img src="{{ route('analyses.map', $analysis) }}" alt="분석 범위 지도" loading="lazy"
+             class="mt-5 w-full rounded-xl border border-line-soft"
+             onerror="this.remove()">
 
         <ul class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @foreach ($meta['regions'] as $region)
@@ -137,7 +144,7 @@
         @endphp
 
         @if ($summaryMetrics)
-        <div class="mt-6 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+        <div class="mt-6 report-split lg:grid-cols-[1.3fr_1fr]">
             <div class="rounded-xl border border-line-soft p-4">
                 <div class="h-[280px]">
                     @php
@@ -217,6 +224,7 @@
             @else
                 @include('analyses.partials.uncovered', ['reason' => $noSource])
             @endif
+            @include('analyses.partials.partial-coverage', ['ratio' => $ratio('resident')])
         </div>
 
         {{-- 배후세대 --}}
@@ -226,7 +234,7 @@
             @if (! $covered('households'))
                 @include('analyses.partials.uncovered', ['reason' => $noSource])
             @else
-            <div class="mt-4 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+            <div class="mt-4 report-split lg:grid-cols-[1.35fr_1fr]">
                 <div class="rounded-xl border border-line-soft p-4">
                     <div class="h-[240px]">
                         @php
@@ -324,6 +332,7 @@
             @else
                 @include('analyses.partials.uncovered', ['reason' => $noSource])
             @endif
+            @include('analyses.partials.partial-coverage', ['ratio' => $ratio('workplace')])
         </div>
 
         {{-- 유동인구 --}}
@@ -387,6 +396,7 @@
                 </div>
             </div>
             @endif
+            @include('analyses.partials.partial-coverage', ['ratio' => $ratio('floating')])
         </div>
     </section>
 
@@ -411,7 +421,7 @@
             @endforeach
         </div>
 
-        <div class="mt-7 grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <div class="mt-7 report-split lg:grid-cols-[1fr_1fr]">
             <div>
                 <h3 class="text-[15px] font-extrabold text-ink-900">업종별 매출</h3>
                 <div class="mt-4 overflow-x-auto">
@@ -486,6 +496,7 @@
 
         @include('analyses.partials.insights', ['lines' => $report['sales']['insights'] ?? []])
         @endif
+        @include('analyses.partials.partial-coverage', ['ratio' => $ratio('sales')])
     </section>
 
     {{-- ─── 업종 분야 · 프랜차이즈 ───────────────────────────── --}}
@@ -507,8 +518,8 @@
             <div class="mt-5 grid gap-3 sm:grid-cols-4">
                 @foreach ([
                     ['전체 점포', number_format($stores['total']).'개'],
-                    ['프랜차이즈', number_format($stores['franchise_total'] ?? 0).'개'],
-                    ['프랜차이즈 비중', number_format($stores['franchise_share'] ?? 0, 1).'%'],
+                    ['프랜차이즈', number_format($stores['franchise_total'] ?? 0).'개 ('.number_format($stores['franchise_share'] ?? 0, 1).'%)'],
+                    ['다점포 상호', number_format($stores['chain_total'] ?? 0).'개 ('.number_format($stores['chain_share'] ?? 0, 1).'%)'],
                     ['최다 분야', ($stores['by_sector'][0]['name'] ?? '-')],
                 ] as [$label, $value])
                     <div class="rounded-xl border border-line-soft p-4">
@@ -519,11 +530,11 @@
             </div>
 
             {{-- 분야별 구성 --}}
-            <div class="mt-7 grid gap-6 lg:grid-cols-[1fr_1fr]">
-                <div>
+            <div class="mt-7 report-split lg:grid-cols-2">
+                <div class="min-w-0">
                     <h3 class="text-[15px] font-extrabold text-ink-900">분야별 점포</h3>
                     <div class="mt-4 rounded-xl border border-line-soft p-4">
-                        <div class="h-[300px]">
+                        <div class="h-[440px]">
                             @php
                                 $sectorConfig = [
                                     'labels' => array_column($stores['by_sector'], 'name'),
@@ -534,12 +545,12 @@
                                     ]],
                                 ];
                             @endphp
-                            <canvas data-chart="bar" data-chart-config='@json($sectorConfig)'></canvas>
+                            <canvas data-chart="hbar" data-chart-config='@json($sectorConfig)'></canvas>
                         </div>
                     </div>
                 </div>
 
-                <div>
+                <div class="min-w-0">
                     <h3 class="text-[15px] font-extrabold text-ink-900">분야별 프랜차이즈 비중</h3>
                     <div class="mt-4 overflow-x-auto">
                         <table class="table-report">
@@ -575,8 +586,10 @@
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h3 class="text-[15px] font-extrabold text-ink-900">프랜차이즈 브랜드</h3>
-                        <p class="mt-1 text-[12px] text-ink-400">
-                            분야별로 매장 수가 많은 브랜드입니다. 전체 목록은 CSV 로 내려받을 수 있습니다.
+                        <p class="mt-1 text-[12px] leading-relaxed text-ink-400">
+                            분야별로 매장 수가 많은 브랜드입니다. 전체 목록은 CSV 로 내려받을 수 있습니다.<br>
+                            <span class="font-semibold text-brand-600">프랜차이즈</span>는 등록된 브랜드에서 이름까지 확인한 것이고,
+                            <span class="font-semibold text-ink-500">다점포 상호</span>는 여러 행정동에 반복되는 상호(지역 체인)입니다.
                         </p>
                     </div>
                     <a href="{{ route('analyses.franchises', $analysis) }}" class="btn-ghost btn-sm">
@@ -605,7 +618,12 @@
                                     @foreach ($sectorBrands as $brand)
                                         <li>
                                             <div class="flex items-center justify-between gap-3">
-                                                <span class="truncate text-[13px] font-semibold text-ink-700">{{ $brand['name'] }}</span>
+                                                <span class="flex min-w-0 items-center gap-1.5">
+                                                    <span class="truncate text-[13px] font-semibold text-ink-700">{{ $brand['name'] }}</span>
+                                                    @if (($brand['source'] ?? 'franchise') === 'chain')
+                                                        <span class="shrink-0 rounded bg-ink-50 px-1.5 py-0.5 text-[10px] font-bold text-ink-400">체인</span>
+                                                    @endif
+                                                </span>
                                                 <span class="shrink-0 text-[12px] font-bold tabular-nums text-brand-600">
                                                     {{ number_format($brand['count']) }}개
                                                 </span>
@@ -659,7 +677,7 @@
         <p class="eyebrow">05</p>
         <h2 class="mt-2 text-[20px] font-extrabold text-ink-900">학생 수 분석</h2>
 
-        <div class="mt-5 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+        <div class="mt-5 report-split lg:grid-cols-[1.35fr_1fr]">
             <div class="rounded-xl border border-line-soft p-4">
                 <div class="h-[240px]">
                     @php
@@ -700,7 +718,7 @@
         <div class="mt-9 border-t border-line-soft pt-7">
             <h3 class="text-[15px] font-extrabold text-ink-900">학원 수</h3>
 
-            <div class="mt-4 grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+            <div class="mt-4 report-split lg:grid-cols-[1fr_1.2fr]">
                 <div>
                     <table class="table-report">
                         <thead><tr><th>구분</th><th class="!text-right">학원 수</th></tr></thead>

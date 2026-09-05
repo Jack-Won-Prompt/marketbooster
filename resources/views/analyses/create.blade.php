@@ -68,7 +68,7 @@
                 <span class="chip" x-text="mode === 'radius' ? '중심 지점을 정하세요' : '행정동을 고르세요'"></span>
             </div>
 
-            <div class="mt-4 flex gap-2">
+            <div class="relative z-[900] mt-4 flex gap-2">
                 <div class="relative flex-1">
                     <input type="text" x-model="query" @input.debounce.300ms="search()" @focus="search()"
                            @keydown.enter.prevent="submitSearch()"
@@ -79,7 +79,7 @@
                     </svg>
 
                     <div x-show="results.length" x-cloak
-                         class="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-line bg-white shadow-lg">
+                         class="absolute z-[900] mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
                         <template x-for="region in results" :key="region.code">
                             <button type="button" @click="pick(region)"
                                     class="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-[14px] hover:bg-surface-muted">
@@ -101,7 +101,7 @@
             <p x-show="searchError" x-cloak class="mt-2 text-[12px] font-semibold text-amber-700" x-text="searchError"></p>
 
             {{-- 지도 (Leaflet + OpenStreetMap — 별도 키가 필요 없다) --}}
-            <div class="mt-4" x-show="mode === 'radius'" x-cloak>
+            <div class="relative z-0 mt-4" x-show="mode === 'radius'" x-cloak>
                 <div id="map" class="h-[340px] w-full overflow-hidden rounded-xl border border-line"></div>
                 <p class="mt-2 text-[12px] text-ink-400">지도를 클릭해 분석 중심을 지정하세요.</p>
             </div>

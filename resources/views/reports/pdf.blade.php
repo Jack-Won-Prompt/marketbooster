@@ -18,6 +18,15 @@
     // 이 범위·기간에 실제로 수록된 통계. 예전에 만든 리포트에는 없으므로 없으면 모두 수록으로 본다.
     $coverage = $meta['coverage'] ?? [];
     $covered = fn (string $key) => ($coverage[$key] ?? true) === true;
+
+    // 범위 중 실제로 수록된 면적 비중. 서울·경기가 함께 걸리면 1 보다 작아진다.
+    $partial = function (string $key) use ($meta) {
+        $ratio = (float) ($meta['coverage_ratio'][$key] ?? 1);
+
+        return $ratio < 0.99
+            ? sprintf('* 이 범위의 %d%%만 수록돼 있습니다. 나머지 지역은 공개 출처가 없어 합계에서 빠졌습니다.', round($ratio * 100))
+            : '';
+    };
     $noSource = ($meta['sido_name'] ?? '이 지역').' 은(는) 아직 이 항목을 행정동 단위로 공개하는 출처를 확보하지 못했습니다.';
 
     // 비교 표에는 수록된 항목만 올린다. 미수록을 0 으로 적으면 비교가 거짓말이 된다.
@@ -28,7 +37,13 @@
     );
 
     // 목차는 실제로 실린 장만 적는다.
-    $chapters = [['인구 요약', ['거주 인구(추정)', '배후세대', '직장인구', '유동인구']]];
+    $chapters = [];
+
+    if (! empty($mapImage)) {
+        $chapters[] = ['분석 범위', ['지도', '포함 행정동과 면적 비율']];
+    }
+
+    $chapters[] = ['인구 요약', ['거주 인구(추정)', '배후세대', '직장인구', '유동인구']];
 
     if ($covered('sales')) {
         $chapters[] = ['카드매출 분석', ['업종별 매출', '요일 · 시간대별 매출', '성 · 연령별 매출']];
@@ -198,6 +213,38 @@
     </div>
 </div>
 
+{{-- ─── 분석 범위 지도 ───────────────────────────────────────── --}}
+@if (! empty($mapImage))
+<div class="page-break">
+    <h2>분석 범위</h2>
+    <div class="unit">파란 영역 = 리포트에 합산된 행정동</div>
+
+    <img src="{{ $mapImage }}" style="width: 100%; border: 0.5pt solid #d8e1ef;" alt="분석 범위 지도">
+
+    <table class="data" style="margin-top: 5mm;">
+        <thead>
+            <tr><th>행정동</th><th class="num">반경에 포함된 면적 비율</th><th class="num">중심에서 거리</th></tr>
+        </thead>
+        <tbody>
+            @foreach ($meta['regions'] as $region)
+                <tr>
+                    <td>{{ $region['name'] }}</td>
+                    <td class="num">{{ round($region['weight'] * 100) }}%</td>
+                    <td class="num">{{ number_format($region['distance_km'], 1) }}km</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <p class="muted">
+        * 지도 바탕은 OpenStreetMap 입니다.
+        @if ($analysis->mode === 'radius')
+            굵은 원이 분석 반경({{ number_format((int) $meta['radius_m']) }}m)입니다.
+        @endif
+    </p>
+</div>
+@endif
+
 {{-- ─── 목차 ─────────────────────────────────────────────────── --}}
 <div class="page-break">
     <h2>목차</h2>
@@ -329,7 +376,10 @@
             </td>
         </tr>
     </table>
-    <p class="muted">* 주민등록인구 수와 배후세대 분포를 활용해 해당 지역에 거주하는 인구를 추정한 정보입니다.</p>
+    <p class="muted">
+        * 주민등록인구 수와 배후세대 분포를 활용해 해당 지역에 거주하는 인구를 추정한 정보입니다.
+        @if ($partial('resident'))<br>{{ $partial('resident') }}@endif
+    </p>
     @endif
 </div>
 
@@ -445,7 +495,10 @@
             </td>
         </tr>
     </table>
-    <p class="muted">* 사업체 조사를 기반으로 주거건물을 제외한 건물의 면적과 층수를 고려해 산정한 정보입니다.</p>
+    <p class="muted">
+        * 사업체 조사를 기반으로 주거건물을 제외한 건물의 면적과 층수를 고려해 산정한 정보입니다.
+        @if ($partial('workplace'))<br>{{ $partial('workplace') }}@endif
+    </p>
     @endif
 </div>
 
@@ -494,6 +547,7 @@
     <p class="muted" style="margin-top:2mm;">
         * 하루 평균값입니다. 평일·주말은 각각 해당 요일 수로 나눠 계산했습니다.<br>
         * 오전 6:00-10:59 | 점심 11:00-14:59 | 오후 15:00-17:59 | 저녁 18:00-20:59 | 밤 21:00-05:59
+        @if ($partial('floating'))<br>{{ $partial('floating') }}@endif
     </p>
 
     <h3>평일 유동인구 성 · 연령 구성</h3>
@@ -624,6 +678,10 @@
             <p>{{ $line }}</p>
         @endforeach
     </div>
+
+    @if ($partial('sales'))
+        <p class="muted" style="margin-top:2mm;">{{ $partial('sales') }}</p>
+    @endif
 </div>
 
 @endif
@@ -643,10 +701,12 @@
             <td style="width:25%;">
                 <div class="card-label">프랜차이즈</div>
                 <div class="card-value">{{ number_format($stores['franchise_total'] ?? 0) }}개</div>
+                <div class="card-level">{{ number_format($stores['franchise_share'] ?? 0, 1) }}%</div>
             </td>
             <td style="width:25%;">
-                <div class="card-label">프랜차이즈 비중</div>
-                <div class="card-value">{{ number_format($stores['franchise_share'] ?? 0, 1) }}%</div>
+                <div class="card-label">다점포 상호</div>
+                <div class="card-value">{{ number_format($stores['chain_total'] ?? 0) }}개</div>
+                <div class="card-level">{{ number_format($stores['chain_share'] ?? 0, 1) }}%</div>
             </td>
             <td style="width:25%;">
                 <div class="card-label">최다 분야</div>
@@ -707,13 +767,14 @@
         <div class="unit">단위 : 개</div>
         <table class="data">
             <thead>
-                <tr><th>분야</th><th>브랜드</th><th class="num">매장 수</th><th class="num">전체 대비</th></tr>
+                <tr><th>분야</th><th>브랜드</th><th>구분</th><th class="num">매장 수</th><th class="num">전체 대비</th></tr>
             </thead>
             <tbody>
                 @foreach ($stores['brands'] as $brand)
                     <tr>
                         <td>{{ $brand['sector_name'] }}</td>
                         <td>{{ $brand['name'] }}</td>
+                        <td>{{ $brand['source_label'] ?? '프랜차이즈' }}</td>
                         <td class="num">{{ number_format($brand['count']) }}</td>
                         <td class="num">{{ number_format($brand['share'], 1) }}%</td>
                     </tr>
@@ -722,8 +783,8 @@
         </table>
 
         <p class="muted">
-            * 브랜드는 상호에서 확인한 값입니다. 잘 알려진 프랜차이즈는 표기가 달라도 하나로 묶었고,
-            사전에 없는 상호라도 여러 행정동에 반복되면 체인으로 보았습니다.
+            * 프랜차이즈는 등록된 브랜드에서 이름까지 확인한 것으로, 표기가 달라도 하나로 묶었습니다.<br>
+            * 다점포 상호는 사전에 없지만 여러 행정동에 반복되는 상호(지역 체인)입니다.
         </p>
     @endif
 

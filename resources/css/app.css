@@ -126,6 +126,19 @@
         @apply text-[26px] font-extrabold tabular-nums text-ink-900;
     }
 
+    /*
+     * 리포트의 2단 배치.
+     * CSS 그리드 칸은 기본 min-width 가 auto 라, 넓은 표가 칸을 밀어내 카드 밖으로 넘친다.
+     * 칸마다 min-width:0 을 줘서 표가 칸 안에서 가로 스크롤되게 한다.
+     */
+    .report-split {
+        @apply grid gap-6;
+    }
+
+    .report-split > * {
+        min-width: 0;
+    }
+
     .table-report {
         @apply w-full border-collapse text-sm;
     }

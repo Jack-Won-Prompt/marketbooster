@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\OpenData\PublicDataClient;
 use App\Services\OpenData\Sbiz\StoreCollector;
+use App\Services\Reports\StaticMapRenderer;
 use App\Services\OpenData\Seoul\SeoulOpenApiClient;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PublicDataClient::class, fn () => PublicDataClient::fromConfig());
         $this->app->singleton(SeoulOpenApiClient::class, fn () => SeoulOpenApiClient::fromConfig());
         $this->app->singleton(StoreCollector::class, fn () => StoreCollector::fromConfig());
+        $this->app->singleton(StaticMapRenderer::class, fn () => StaticMapRenderer::fromConfig());
     }
 
     public function boot(): void

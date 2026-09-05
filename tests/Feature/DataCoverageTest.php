@@ -72,6 +72,36 @@ class DataCoverageTest extends TestCase
         app(MarketAnalyzer::class)->analyze($this->analysisAt(37.50, 127.00));
     }
 
+    public function test_일부_행정동만_수록되면_비중을_알려_준다(): void
+    {
+        // 두 동에 걸치는 반경인데 통계는 한 동에만 있다.
+        // (서울과 경기가 함께 걸리는 반경에서 실제로 일어나는 상황)
+        $this->makeRegion('11500603', '가양1동', 37.50, 126.99);
+        $this->makeRegion('41150510', '의정부1동', 37.50, 127.01, sigungu: '의정부시', sido: '경기도');
+        $this->seedStatistics('11500603');
+
+        $report = app(MarketAnalyzer::class)->analyze($this->analysisAt(37.50, 127.00));
+
+        $this->assertCount(2, $report['meta']['regions']);
+        $this->assertTrue($report['meta']['coverage']['floating']);
+
+        // 절반만 수록됐으므로 비중이 1 보다 뚜렷하게 작아야 한다.
+        $ratio = $report['meta']['coverage_ratio']['floating'];
+
+        $this->assertGreaterThan(0.0, $ratio);
+        $this->assertLessThan(0.9, $ratio);
+    }
+
+    public function test_전부_수록된_범위는_비중이_1이다(): void
+    {
+        $this->makeRegion('11500603', '가양1동', 37.50, 127.00);
+        $this->seedStatistics('11500603');
+
+        $report = app(MarketAnalyzer::class)->analyze($this->analysisAt(37.50, 127.00));
+
+        $this->assertSame(1.0, (float) $report['meta']['coverage_ratio']['floating']);
+    }
+
     public function test_통계가_모두_있는_지역은_전부_수록으로_표시된다(): void
     {
         $this->makeRegion('11500603', '가양1동', 37.50, 127.00);

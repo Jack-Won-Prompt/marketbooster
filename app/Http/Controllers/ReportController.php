@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Analysis;
+use App\Services\Reports\StaticMapRenderer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -10,6 +11,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
+    public function __construct(private readonly StaticMapRenderer $maps) {}
+
     /** 업로드 예시와 같은 구성의 PDF 리포트를 만든다. */
     public function pdf(Request $request, Analysis $analysis): Response|StreamedResponse
     {
@@ -22,6 +25,8 @@ class ReportController extends Controller
         $pdf = Pdf::loadView('reports.pdf', [
             'analysis' => $analysis,
             'report' => $analysis->payload,
+            // dompdf 는 JavaScript 를 못 돌리므로 지도는 서버에서 그려 그림으로 넣는다.
+            'mapImage' => $this->mapDataUri($analysis),
         ])->setPaper('a4', 'portrait');
 
         $filename = sprintf(
@@ -33,6 +38,46 @@ class ReportController extends Controller
         return $request->boolean('inline')
             ? $pdf->stream($filename)
             : $pdf->download($filename);
+    }
+
+    /**
+     * 웹 리포트 화면에 넣을 지도 그림.
+     * HTML 에 data URI 를 그대로 박으면 페이지가 수백 KB 무거워지므로 따로 내보낸다.
+     */
+    public function map(Request $request, Analysis $analysis): Response
+    {
+        abort_unless($analysis->user_id === $request->user()->id, 403);
+        abort_unless($analysis->isCompleted(), 404);
+
+        $png = $this->maps->render(
+            $analysis->payload['meta'] ?? [],
+            (int) config('map.static_width', 900),
+            (int) config('map.static_height', 560),
+        );
+
+        abort_if($png === null, 404, '이 분석에는 그릴 지도가 없습니다.');
+
+        return response($png, 200, [
+            'Content-Type' => 'image/png',
+            // 분석 payload 는 재분석하지 않는 한 바뀌지 않는다.
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
+    /** PDF 에 넣을 지도. 타일 서버가 죽어도 리포트는 나와야 하므로 실패를 삼킨다. */
+    private function mapDataUri(Analysis $analysis): ?string
+    {
+        try {
+            return $this->maps->renderDataUri(
+                $analysis->payload['meta'] ?? [],
+                (int) config('map.static_width', 900),
+                (int) config('map.static_height', 560),
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**
@@ -64,13 +109,15 @@ class ReportController extends Controller
             fputcsv($out, ['기준', $analysis->payload['meta']['base_label'] ?? '-']);
             fputcsv($out, ['전체 점포', $stores['total'] ?? 0]);
             fputcsv($out, ['프랜차이즈 점포', $stores['franchise_total'] ?? 0]);
+            fputcsv($out, ['다점포 상호 점포', $stores['chain_total'] ?? 0]);
             fputcsv($out, []);
-            fputcsv($out, ['분야', '브랜드', '매장 수', '전체 대비 비중(%)']);
+            fputcsv($out, ['분야', '브랜드', '구분', '매장 수', '전체 대비 비중(%)']);
 
             foreach ($brands as $brand) {
                 fputcsv($out, [
                     $brand['sector_name'] ?? '',
                     $brand['name'] ?? '',
+                    $brand['source_label'] ?? '프랜차이즈',
                     $brand['count'] ?? 0,
                     $brand['share'] ?? 0,
                 ]);

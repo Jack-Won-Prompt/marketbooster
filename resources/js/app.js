@@ -61,12 +61,17 @@ const compact = (value) => {
 /**
  * data-chart 속성이 붙은 canvas 를 찾아 자동으로 그린다.
  *   <canvas data-chart="bar" data-chart-config='{"labels":[...],"datasets":[...]}'></canvas>
+ *
+ * hbar 는 가로 막대다. 항목이 많거나 이름이 긴 축(업종 분야 같은)은
+ * 세로 막대로 그리면 라벨이 겹치거나 잘려 읽히지 않는다.
  */
 function renderCharts(root = document) {
     root.querySelectorAll('canvas[data-chart]').forEach((canvas) => {
         if (canvas.dataset.chartRendered === '1') return;
 
-        const type = canvas.dataset.chart;
+        const declared = canvas.dataset.chart;
+        const horizontal = declared === 'hbar';
+        const type = horizontal ? 'bar' : declared;
         const config = JSON.parse(canvas.dataset.chartConfig || '{}');
         const money = canvas.dataset.chartMoney === '1';
 
@@ -94,29 +99,42 @@ function renderCharts(root = document) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                indexAxis: horizontal ? 'y' : 'x',
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: type === 'doughnut' || datasets.length > 1, position: 'bottom' },
                     tooltip: {
                         callbacks: {
-                            label: (ctx) =>
-                                ` ${ctx.dataset.label ?? ''} ${
-                                    money ? compact(ctx.parsed.y ?? ctx.parsed) + '원' : (ctx.parsed.y ?? ctx.parsed).toLocaleString()
-                                }`,
+                            label: (ctx) => {
+                                const value = horizontal
+                                    ? (ctx.parsed.x ?? ctx.parsed)
+                                    : (ctx.parsed.y ?? ctx.parsed);
+
+                                return ` ${ctx.dataset.label ?? ''} ${money ? compact(value) + '원' : value.toLocaleString()}`;
+                            },
                         },
                     },
                 },
                 scales:
                     type === 'doughnut'
                         ? {}
-                        : {
-                              x: { grid: { display: false }, border: { color: palette.grid } },
-                              y: {
-                                  grid: { color: palette.grid },
-                                  border: { display: false },
-                                  ticks: { callback: (v) => (money ? compact(v) : v.toLocaleString()) },
-                              },
-                          },
+                        : horizontal
+                          ? {
+                                x: {
+                                    grid: { color: palette.grid },
+                                    border: { display: false },
+                                    ticks: { callback: (v) => (money ? compact(v) : v.toLocaleString()) },
+                                },
+                                y: { grid: { display: false }, border: { color: palette.grid } },
+                            }
+                          : {
+                                x: { grid: { display: false }, border: { color: palette.grid } },
+                                y: {
+                                    grid: { color: palette.grid },
+                                    border: { display: false },
+                                    ticks: { callback: (v) => (money ? compact(v) : v.toLocaleString()) },
+                                },
+                            },
             },
         });
 
