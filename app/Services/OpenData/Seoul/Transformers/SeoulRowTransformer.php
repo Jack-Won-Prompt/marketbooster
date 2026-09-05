@@ -72,6 +72,32 @@ abstract class SeoulRowTransformer
     }
 
     /**
+     * 기간 동안 누적된 값을 일평균으로 환산한다.
+     *
+     * 서울시 상권분석서비스의 유동인구·매출은 분기 내내 쌓은 합계다.
+     * (가양1동 2026년 2분기 총 유동인구 3,024,152명 → 하루 약 33,000명)
+     * 그대로 리포트에 실으면 하루 수치처럼 읽히므로 적재 시점에 일평균으로 맞춘다.
+     *
+     * 평일·주말은 반드시 각자의 일수로 나눠야 한다.
+     * 한 분기는 평일 약 65일 / 주말 약 26일이라, 평일 누적을 전체 91일로 나누면
+     * 평일 하루 값이 3분의 1 수준으로 깎인다.
+     *
+     * 상주인구·직장인구·가구 수는 누적이 아니라 그 시점의 규모이므로 나누지 않는다.
+     */
+    protected function perDay(float $value, Period $period, ?string $dayType = null): float
+    {
+        $counts = $period->dayCounts();
+
+        $divisor = match ($dayType) {
+            'weekday' => $counts['weekday'],
+            'weekend' => $counts['weekend'],
+            default => $counts['weekday'] + $counts['weekend'],
+        };
+
+        return $value / max(1, $divisor);
+    }
+
+    /**
      * 이 행이 실제로 어느 분기의 값인지 읽는다.
      *
      * 서울 API 는 서비스마다 분기 필터(STDR_YYQU_CD)를 지키기도 하고 무시하기도 한다.

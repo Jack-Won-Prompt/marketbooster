@@ -142,19 +142,29 @@ class StatisticsRepository
                 'card_sales.region_code',
                 'card_sales.industry_code',
                 'card_sales.industry_name',
+                'card_sales.day_type',
                 'industries.group_name',
                 DB::raw('SUM(card_sales.sales_amount) AS amount'),
                 DB::raw('SUM(card_sales.sales_count) AS cnt')
             )
             ->whereIn('card_sales.region_code', array_keys($weights))
             ->where('card_sales.'.$period->filterColumn(), $period->code)
-            ->groupBy('card_sales.region_code', 'card_sales.industry_code', 'card_sales.industry_name', 'industries.group_name')
+            ->groupBy('card_sales.region_code', 'card_sales.industry_code', 'card_sales.industry_name', 'card_sales.day_type', 'industries.group_name')
             ->get();
+
+        /*
+         * 저장값은 "그 요일 구분의 하루 평균" 이다.
+         * 평일 하루치와 주말 하루치를 그냥 더하면 이틀치가 되므로,
+         * 기간 안의 평일·주말 일수로 가중평균해 하루치로 만든다.
+         */
+        $dayCounts = $period->dayCounts();
+        $totalDays = max(1, $dayCounts['weekday'] + $dayCounts['weekend']);
 
         $acc = [];
 
         foreach ($rows as $row) {
-            $weight = $weights[$row->region_code] ?? 0;
+            $dayWeight = ($dayCounts[$row->day_type] ?? 0) / $totalDays;
+            $weight = ($weights[$row->region_code] ?? 0) * $dayWeight;
             $code = $row->industry_code;
 
             $acc[$code] ??= [

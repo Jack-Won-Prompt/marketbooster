@@ -28,7 +28,7 @@ class FloatingPopulationTransformer extends SeoulRowTransformer
         );
         $ageShares = $this->shares($this->ageValues($row, 'AGRDE_%s_FLPOP_CO'));
 
-        $period = $period->columns();
+        $columns = $period->columns();
         $rows = [];
 
         foreach ($bands as $band => $bandTotal) {
@@ -37,9 +37,12 @@ class FloatingPopulationTransformer extends SeoulRowTransformer
             }
 
             foreach ($dayShares as $dayType => $dayShare) {
+                // 분기 누적을 평일/주말 각자의 일수로 나눠 하루치로 만든다.
+                $daily = $this->perDay($bandTotal * $dayShare, $period, $dayType);
+
                 foreach ($genderShares as $gender => $genderShare) {
                     foreach ($ageShares as $ageBand => $ageShare) {
-                        $value = (int) round($bandTotal * $dayShare * $genderShare * $ageShare);
+                        $value = (int) round($daily * $genderShare * $ageShare);
 
                         if ($value <= 0) {
                             continue;
@@ -52,7 +55,7 @@ class FloatingPopulationTransformer extends SeoulRowTransformer
                             'gender' => $gender,
                             'age_band' => $ageBand,
                             'population' => $value,
-                        ] + $period;
+                        ] + $columns;
                     }
                 }
             }

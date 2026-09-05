@@ -242,7 +242,19 @@ php artisan opendata:import card_sales <파일.csv> --ym=20242    # 분기
 
 ---
 
-## 5. 리포트 구성
+## 5. 위치 상권 현황 (지도)
+
+`/map` 에서 지도를 클릭하면 그 지점 반경의 상권을 즉석에서 계산해 오른쪽 패널에 보여 줍니다.
+저장 없이 미리 보고, 마음에 들면 그 자리에서 리포트로 만들어 PDF 로 내려받습니다.
+
+- 지도는 **Leaflet + OpenStreetMap** 이라 API 키가 필요 없습니다.
+- 반경 150m ~ 3km, 행정동 검색으로 이동, 기준 기간 전환
+- 패널: 포함 행정동과 겹침 비율 · 핵심 지표 · 시간대별 유동인구(평일/주말) · 카드매출과 업종 Top · 분석 문단
+- 미리보기는 `GET /api/regions/market` 이 담당하며 analyses 테이블에 남지 않습니다.
+
+---
+
+## 6. 리포트 구성
 
 웹 화면(`/analyses/{uuid}`)과 PDF(`/analyses/{uuid}/report.pdf`)가 같은 payload 를 렌더링합니다.
 
@@ -256,24 +268,26 @@ php artisan opendata:import card_sales <파일.csv> --ym=20242    # 분기
 "분석 결과" 문단은 `InsightWriter` 가 집계값에서 자동으로 씁니다
 (조사 처리는 `App\Support\Korean`).
 
-PDF 는 dompdf 로 만들며 한글 글꼴은 `storage/fonts/NanumGothic-*.ttf` 를 임베드합니다.
+PDF 는 dompdf 로 만들며 웹과 같은 Pretendard(`storage/fonts/Pretendard-*.ttf`)를 임베드합니다.
 차트는 dompdf 가 canvas 를 그리지 못하므로 표 기반 가로 막대로 렌더링합니다.
 
 ---
 
-## 6. 지도
+## 7. 지도 키 (선택)
 
-`.env` 에 카카오 JavaScript 키를 넣으면 지역 선택 화면에서 지도를 클릭해 중심을 지정할 수 있습니다.
+**위치 상권 현황(`/map`) 화면은 키가 필요 없습니다.** Leaflet + OpenStreetMap 을 씁니다.
+
+`새 상권분석` 화면의 지도만 카카오 SDK 를 쓰므로, 원한다면 키를 넣습니다.
 
 ```dotenv
 KAKAO_MAP_JS_KEY=자바스크립트_키
 ```
 
-키가 없으면 지도 대신 검색 · 좌표 직접 입력 패널이 표시되며, 분석 기능 자체는 그대로 동작합니다.
+키가 없으면 그 화면에서는 지도 대신 검색 · 좌표 직접 입력 패널이 표시되며, 분석 기능 자체는 그대로 동작합니다.
 
 ---
 
-## 7. 테스트
+## 8. 테스트
 
 ```bash
 mysql -u root -e "CREATE DATABASE market_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
@@ -282,7 +296,7 @@ php artisan test
 
 ---
 
-## 8. 주요 디렉터리
+## 9. 주요 디렉터리
 
 ```
 app/
@@ -307,7 +321,7 @@ resources/views/
   analyses/               지역 선택 · 리포트
   reports/pdf.blade.php   PDF 리포트
 storage/app/seed/         행정동 중심점 CSV · 경계 GeoJSON · 서울 API 필드 명세
-storage/fonts/            PDF 용 나눔고딕
+storage/fonts/            PDF 용 Pretendard (웹과 동일)
 public/images/            랜딩용 SVG 삽화 (파일 안에서 자체 애니메이션)
 ```
 
@@ -334,11 +348,11 @@ public/images/            랜딩용 SVG 삽화 (파일 안에서 자체 애니�
 | 파일 | 출처 | 라이선스 |
 |---|---|---|
 | `storage/app/seed/dong_center.csv`<br>`storage/app/seed/dong_boundary.geojson` | [cubensys/Korea_District](https://github.com/cubensys/Korea_District) — 서울시 행정동 중심점 · 경계 (2017) | 저장소 표기 참조 |
-| `storage/fonts/NanumGothic-*.ttf` | [Google Fonts — Nanum Gothic](https://fonts.google.com/specimen/Nanum+Gothic) | SIL Open Font License 1.1 |
+| `storage/fonts/Pretendard-*.ttf` | [Pretendard](https://github.com/orioncactus/pretendard) | SIL Open Font License 1.1 |
 
 ---
 
-## 9. 데이터 이용 안내
+## 10. 데이터 이용 안내
 
 모든 통계는 집계 방법과 기준일, 분석 방법에 따라 오차가 발생할 수 있으므로 참고용으로만 활용해 주세요.
 가맹사업 관련 **서면 제공 시에는 가맹사업법이 정한 양식과 기준**에 따라 작성해야 합니다.

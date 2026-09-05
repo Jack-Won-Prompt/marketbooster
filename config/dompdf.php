@@ -179,7 +179,7 @@ return [
          *
          * @var string
          */
-        'default_font' => 'nanumgothic',
+        'default_font' => 'pretendard',
 
         /**
          * Image DPI setting

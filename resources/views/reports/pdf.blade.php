@@ -23,21 +23,21 @@
     <style>
         /* 한글 글꼴 등록 — dompdf 는 시스템 글꼴을 모르므로 파일 경로로 직접 지정한다. */
         @font-face {
-            font-family: 'nanumgothic';
+            font-family: 'pretendard';
             font-style: normal;
             font-weight: 400;
-            src: url('{{ str_replace('\\', '/', storage_path('fonts/NanumGothic-Regular.ttf')) }}') format('truetype');
+            src: url('{{ str_replace('\\', '/', storage_path('fonts/Pretendard-Regular.ttf')) }}') format('truetype');
         }
         @font-face {
-            font-family: 'nanumgothic';
+            font-family: 'pretendard';
             font-style: normal;
             font-weight: 700;
-            src: url('{{ str_replace('\\', '/', storage_path('fonts/NanumGothic-Bold.ttf')) }}') format('truetype');
+            src: url('{{ str_replace('\\', '/', storage_path('fonts/Pretendard-Bold.ttf')) }}') format('truetype');
         }
 
         @page { margin: 26mm 14mm 20mm 14mm; }
 
-        * { font-family: 'nanumgothic', sans-serif; }
+        * { font-family: 'pretendard', sans-serif; }
 
         body { margin: 0; color: #100f14; font-size: 9.5pt; line-height: 1.55; }
 
@@ -241,7 +241,7 @@
     </table>
 
     <p class="muted" style="margin-top: 2mm;">
-        * 점심/저녁 유동인구 : 해당 시간대 유동인구 수의 합계입니다. (점심 11~14시, 저녁 18~20시)<br>
+        * 점심/저녁 유동인구 : 해당 시간대의 하루 평균 유동인구입니다. (점심 11~14시, 저녁 18~20시)<br>
         * 상위 시도/시군구 평균 : 그 지역에 속한 행정동 1곳당 평균값으로, 반경 분석 시 큰 차이가 날 수 있습니다.
     </p>
 
@@ -438,7 +438,8 @@
     </table>
 
     <p class="muted" style="margin-top:2mm;">
-        * 오전 6:00-10:59 | 점심 11:00-14:59 | 오후 15:00-17:59 | 저녁 18:00-20:59 | 밤 21:00-00:59 (새벽시간 미제공)
+        * 하루 평균값입니다. 평일·주말은 각각 해당 요일 수로 나눠 계산했습니다.<br>
+        * 오전 6:00-10:59 | 점심 11:00-14:59 | 오후 15:00-17:59 | 저녁 18:00-20:59 | 밤 21:00-05:59
     </p>
 
     <h3>평일 유동인구 성 · 연령 구성</h3>
@@ -487,11 +488,11 @@
     <table class="cards">
         <tr>
             <td style="width:33%;">
-                <div class="card-label">월 카드매출 추정</div>
+                <div class="card-label">일평균 카드매출</div>
                 <div class="card-value">{{ $money($report['sales']['total_amount']) }}원</div>
             </td>
             <td style="width:33%;">
-                <div class="card-label">월 결제 건수</div>
+                <div class="card-label">일평균 결제 건수</div>
                 <div class="card-value">{{ number_format($report['sales']['total_count']) }}건</div>
             </td>
             <td style="width:34%;">

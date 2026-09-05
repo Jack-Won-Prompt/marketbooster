@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\Period;
 use App\Support\Taxonomy;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -82,11 +83,15 @@ class DemoStatisticsSeeder extends Seeder
 
     private string $baseYm;
 
+    /** @var array{weekday:int, weekend:int} */
+    private array $dayCounts;
+
     private array $industryGroups = [];
 
     public function run(): void
     {
         $this->baseYm = now()->subMonth()->format('Ym');
+        $this->dayCounts = Period::month($this->baseYm)->dayCounts();
         $this->industryGroups = collect(IndustrySeeder::INDUSTRIES)
             ->mapWithKeys(fn (array $i) => [$i[0] => $i[2]])
             ->all();
@@ -268,7 +273,9 @@ class DemoStatisticsSeeder extends Seeder
             $industryName = $this->industryName($industryCode);
 
             foreach (Taxonomy::DAY_TYPES as $dayType) {
-                $dayAmount = $industryAmount * ($dayType === 'weekday' ? $weekdayShare : 1 - $weekdayShare);
+                // 저장 규약은 "그 요일 구분의 하루 평균" 이므로 해당 요일 수로 나눈다.
+                $dayAmount = $industryAmount * ($dayType === 'weekday' ? $weekdayShare : 1 - $weekdayShare)
+                    / max(1, $this->dayCounts[$dayType]);
 
                 foreach (self::SALES_BAND_PROFILE[$group] ?? self::SALES_BAND_PROFILE['소매'] as $band => $bandShare) {
                     $amount = (int) round($dayAmount * $bandShare);

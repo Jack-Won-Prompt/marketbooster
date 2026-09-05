@@ -95,8 +95,8 @@
             $summaryMetrics = [
                 'resident' => '거주 인구(추정)',
                 'households' => '배후세대',
-                'lunch_floating' => '점심 유동인구',
-                'evening_floating' => '저녁 유동인구',
+                'lunch_floating' => '점심 유동인구(일평균)',
+                'evening_floating' => '저녁 유동인구(일평균)',
                 'workplace' => '직장인구',
             ];
         @endphp
@@ -293,7 +293,8 @@
         <div class="mt-10 border-t border-line-soft pt-8">
             <h3 class="text-[15px] font-extrabold text-ink-900">유동인구</h3>
             <p class="mt-1 text-[12px] text-ink-400">
-                * 오전 6:00-10:59 | 점심 11:00-14:59 | 오후 15:00-17:59 | 저녁 18:00-20:59 | 밤 21:00-00:59 (새벽시간 미제공)
+                * 하루 평균값입니다. 평일·주말은 각각 해당 요일 수로 나눠 계산했습니다.<br>
+                * 오전 6:00-10:59 | 점심 11:00-14:59 | 오후 15:00-17:59 | 저녁 18:00-20:59 | 밤 21:00-05:59
             </p>
 
             <div class="mt-4 rounded-xl border border-line-soft p-4">
@@ -355,8 +356,8 @@
 
         <div class="mt-5 grid gap-3 sm:grid-cols-3">
             @foreach ([
-                ['월 카드매출 추정', $money($report['sales']['total_amount']).'원'],
-                ['월 결제 건수', number_format($report['sales']['total_count']).'건'],
+                ['일평균 카드매출', $money($report['sales']['total_amount']).'원'],
+                ['일평균 결제 건수', number_format($report['sales']['total_count']).'건'],
                 ['건당 평균 결제', number_format($report['sales']['avg_ticket']).'원'],
             ] as [$label, $value])
                 <div class="rounded-xl border border-line-soft p-4">

@@ -45,6 +45,19 @@ class PeriodTest extends TestCase
         $this->assertSame('202412', Period::quarter('20244')->approximateMonth());
     }
 
+    public function test_기간_안의_평일과_주말_일수를_센다(): void
+    {
+        $q = Period::quarter('20262')->dayCounts();
+        $this->assertSame(65, $q['weekday']);
+        $this->assertSame(26, $q['weekend']);
+        $this->assertSame(91, Period::quarter('20262')->days());
+
+        $m = Period::month('202608')->dayCounts();
+        $this->assertSame(21, $m['weekday']);
+        $this->assertSame(10, $m['weekend']);
+        $this->assertSame(31, Period::month('202608')->days());
+    }
+
     public function test_형식이_틀리면_거부한다(): void
     {
         $this->expectException(InvalidArgumentException::class);

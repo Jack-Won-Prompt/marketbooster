@@ -21,7 +21,6 @@
           previewUrl: @js(route('api.regions.preview')),
           searchUrl: @js(route('api.regions.search')),
       })"
-      x-init="init()"
       class="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
     @csrf
 

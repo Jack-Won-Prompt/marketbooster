@@ -30,6 +30,7 @@
             @php
                 $nav = [
                     ['dashboard', '대시보드', 'M4 6h6v6H4zM14 6h6v4h-6zM14 14h6v4h-6zM4 16h6v2H4z'],
+                    ['map', '위치 상권 현황', 'M9 20l-6-3V4l6 3m0 13l6-3m-6 3V7m6 10l6 3V7l-6-3m0 13V4'],
                     ['analyses.create', '새 상권분석', 'M12 5v14M5 12h14'],
                     ['analyses.index', '분석 목록', 'M4 7h16M4 12h16M4 17h10'],
                 ];
@@ -90,7 +91,7 @@
             </div>
         </header>
 
-        <main class="flex-1 p-5 lg:p-8">
+        <main class="flex-1 @yield('main-class', 'p-5 lg:p-8')">
             @if (session('status'))
                 <div class="mb-5 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
                     {{ session('status') }}

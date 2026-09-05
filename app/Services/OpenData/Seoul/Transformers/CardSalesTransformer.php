@@ -25,8 +25,8 @@ class CardSalesTransformer extends SeoulRowTransformer
         $columns = $period->columns();
 
         return [
-            'card_sales' => $this->dayAndBandRows($row, $regionCode, $industryCode, $industryName, $columns),
-            'card_sales_demographics' => $this->demographicRows($row, $regionCode, $industryCode, $columns),
+            'card_sales' => $this->dayAndBandRows($row, $regionCode, $industryCode, $industryName, $columns, $period),
+            'card_sales_demographics' => $this->demographicRows($row, $regionCode, $industryCode, $columns, $period),
             'industries' => [[
                 'code' => $industryCode,
                 'name' => $industryName,
@@ -34,8 +34,11 @@ class CardSalesTransformer extends SeoulRowTransformer
         ];
     }
 
-    /** 요일 × 시간대 매출. 시간대 합계에 주중/주말 비율을 곱해 나눈다. */
-    private function dayAndBandRows(array $row, string $regionCode, string $industryCode, string $industryName, array $columns): array
+    /**
+     * 요일 × 시간대 매출.
+     * 시간대 합계에 주중/주말 비율을 곱해 나눈 뒤, 평일·주말 각자의 일수로 나눠 하루치로 만든다.
+     */
+    private function dayAndBandRows(array $row, string $regionCode, string $industryCode, string $industryName, array $columns, Period $period): array
     {
         $amountBands = $this->timeBandValues($row, 'TMZON_%s_SELNG_AMT');
         $countBands = $this->timeBandValues($row, 'TMZON_%s_SELNG_CO');
@@ -62,8 +65,8 @@ class CardSalesTransformer extends SeoulRowTransformer
                     'industry_name' => $industryName,
                     'day_type' => $dayType,
                     'time_band' => $band,
-                    'sales_amount' => (int) round($amount * $share),
-                    'sales_count' => (int) round($count * $share),
+                    'sales_amount' => (int) round($this->perDay($amount * $share, $period, $dayType)),
+                    'sales_count' => (int) round($this->perDay($count * $share, $period, $dayType)),
                 ] + $columns;
             }
         }
@@ -71,8 +74,11 @@ class CardSalesTransformer extends SeoulRowTransformer
         return $rows;
     }
 
-    /** 성별 × 연령 매출. 연령대 합계에 성별 비율을 곱해 나눈다. */
-    private function demographicRows(array $row, string $regionCode, string $industryCode, array $columns): array
+    /**
+     * 성별 × 연령 매출. 연령대 합계에 성별 비율을 곱해 나눈다.
+     * 여기에는 요일 축이 없으므로 기간 전체 일수로 나눈 하루 평균이다.
+     */
+    private function demographicRows(array $row, string $regionCode, string $industryCode, array $columns, Period $period): array
     {
         $ageAmounts = $this->ageValues($row, 'AGRDE_%s_SELNG_AMT');
         $ageCounts = $this->ageValues($row, 'AGRDE_%s_SELNG_CO');
@@ -97,8 +103,8 @@ class CardSalesTransformer extends SeoulRowTransformer
                     'industry_code' => $industryCode,
                     'gender' => $gender,
                     'age_band' => $ageBand,
-                    'sales_amount' => (int) round($amount * $share),
-                    'sales_count' => (int) round($count * $share),
+                    'sales_amount' => (int) round($this->perDay($amount * $share, $period)),
+                    'sales_count' => (int) round($this->perDay($count * $share, $period)),
                 ] + $columns;
             }
         }

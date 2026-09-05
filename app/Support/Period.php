@@ -94,6 +94,58 @@ class Period
         return $this->isQuarter() ? "q{$this->code}" : "m{$this->code}";
     }
 
+    /** 기간의 시작일(포함)과 끝일(제외) */
+    public function range(): array
+    {
+        if (! $this->isQuarter()) {
+            $start = Carbon::createFromFormat('Ym', $this->code)->startOfMonth();
+
+            return [$start, $start->copy()->addMonth()];
+        }
+
+        $year = (int) substr($this->code, 0, 4);
+        $quarter = (int) substr($this->code, 4, 1);
+        $start = Carbon::create($year, ($quarter - 1) * 3 + 1, 1)->startOfDay();
+
+        return [$start, $start->copy()->addMonths(3)];
+    }
+
+    /**
+     * 이 기간이 며칠인지.
+     *
+     * 서울시 상권분석서비스처럼 기간 동안 누적된 값(유동인구·매출)을
+     * 일평균으로 환산할 때 나누는 수다.
+     */
+    public function days(): int
+    {
+        $counts = $this->dayCounts();
+
+        return $counts['weekday'] + $counts['weekend'];
+    }
+
+    /**
+     * 기간 안의 평일 수와 주말 수.
+     *
+     * 누적값을 일평균으로 바꿀 때 전체 일수로 나누면 안 된다.
+     * 한 분기는 평일이 약 65일, 주말이 약 26일이라 평일 누적을 91로 나누면
+     * 평일 하루 값이 3분의 1 수준으로 과소평가된다.
+     *
+     * @return array{weekday:int, weekend:int}
+     */
+    public function dayCounts(): array
+    {
+        [$start, $end] = $this->range();
+
+        $weekday = 0;
+        $weekend = 0;
+
+        for ($day = $start->copy(); $day->lt($end); $day->addDay()) {
+            $day->isWeekend() ? $weekend++ : $weekday++;
+        }
+
+        return ['weekday' => $weekday, 'weekend' => $weekend];
+    }
+
     /** 분기의 마지막 달 (월 단위 데이터와 나란히 볼 때 참고용) */
     public function approximateMonth(): string
     {

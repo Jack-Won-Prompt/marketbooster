@@ -61,44 +61,59 @@ class SeoulTransformerTest extends TestCase
 
         $this->assertNotEmpty($rows);
 
-        // 전체 합 = 시간대 합계의 총합 (20,000)
-        $this->assertEqualsWithDelta(20000, $this->sum($rows, 'population'), 20);
+        // 저장값은 하루 평균이다. 평일·주말 각자의 일수를 되곱하면 원본 누적이 복원돼야 한다.
+        // 칸마다 정수로 반올림한 뒤 일수를 곱하므로 오차가 일수만큼 증폭된다. 허용치를 비율로 둔다.
+        $counts = $this->period->dayCounts();
+        $back = fn (array $r) => $r['population'] * $counts[$r['day_type']];
+
+        $total = array_sum(array_map($back, $rows));
+        $this->assertEqualsWithDelta(20000, $total, 20000 * 0.03);
 
         // 시간대별 주변합
         $byBand = [];
         foreach ($rows as $r) {
-            $byBand[$r['time_band']] = ($byBand[$r['time_band']] ?? 0) + $r['population'];
+            $byBand[$r['time_band']] = ($byBand[$r['time_band']] ?? 0) + $back($r);
         }
-        $this->assertEqualsWithDelta(4000, $byBand['morning'], 10);
-        $this->assertEqualsWithDelta(5000, $byBand['lunch'], 10);
-        $this->assertEqualsWithDelta(3000, $byBand['afternoon'], 10);
-        $this->assertEqualsWithDelta(4500, $byBand['evening'], 10);
+        $this->assertEqualsWithDelta(4000, $byBand['morning'], 4000 * 0.05);
+        $this->assertEqualsWithDelta(5000, $byBand['lunch'], 5000 * 0.05);
+        $this->assertEqualsWithDelta(3000, $byBand['afternoon'], 3000 * 0.05);
+        $this->assertEqualsWithDelta(4500, $byBand['evening'], 4500 * 0.05);
         // 밤 = 21~24 + 00~06
-        $this->assertEqualsWithDelta(3500, $byBand['night'], 10);
+        $this->assertEqualsWithDelta(3500, $byBand['night'], 3500 * 0.05);
 
         // 성별 주변합 (남 60% / 여 40%)
         $byGender = [];
         foreach ($rows as $r) {
-            $byGender[$r['gender']] = ($byGender[$r['gender']] ?? 0) + $r['population'];
+            $byGender[$r['gender']] = ($byGender[$r['gender']] ?? 0) + $back($r);
         }
-        $this->assertEqualsWithDelta(12000, $byGender['M'], 20);
-        $this->assertEqualsWithDelta(8000, $byGender['F'], 20);
+        $this->assertEqualsWithDelta(12000, $byGender['M'], 12000 * 0.03);
+        $this->assertEqualsWithDelta(8000, $byGender['F'], 8000 * 0.03);
 
         // 요일 주변합 (평일 15,000 / 주말 5,000 → 75% / 25%)
         $byDay = [];
         foreach ($rows as $r) {
-            $byDay[$r['day_type']] = ($byDay[$r['day_type']] ?? 0) + $r['population'];
+            $byDay[$r['day_type']] = ($byDay[$r['day_type']] ?? 0) + $back($r);
         }
-        $this->assertEqualsWithDelta(15000, $byDay['weekday'], 20);
-        $this->assertEqualsWithDelta(5000, $byDay['weekend'], 20);
+        $this->assertEqualsWithDelta(15000, $byDay['weekday'], 15000 * 0.03);
+        $this->assertEqualsWithDelta(5000, $byDay['weekend'], 5000 * 0.03);
+
+        // 평일 하루 평균이 주말 하루 평균보다 커야 한다.
+        // (평일 15,000 ÷ 65일 = 231, 주말 5,000 ÷ 26일 = 192)
+        $dailyWeekday = 0;
+        $dailyWeekend = 0;
+        foreach ($rows as $r) {
+            $r['day_type'] === 'weekday' ? $dailyWeekday += $r['population'] : $dailyWeekend += $r['population'];
+        }
+        $this->assertEqualsWithDelta(15000 / $counts['weekday'], $dailyWeekday, 2);
+        $this->assertEqualsWithDelta(5000 / $counts['weekend'], $dailyWeekend, 2);
 
         // 연령 주변합
         $byAge = [];
         foreach ($rows as $r) {
-            $byAge[$r['age_band']] = ($byAge[$r['age_band']] ?? 0) + $r['population'];
+            $byAge[$r['age_band']] = ($byAge[$r['age_band']] ?? 0) + $back($r);
         }
-        $this->assertEqualsWithDelta(5000, $byAge['30s'], 15);
-        $this->assertEqualsWithDelta(3000, $byAge['60s'], 15);
+        $this->assertEqualsWithDelta(5000, $byAge['30s'], 5000 * 0.05);
+        $this->assertEqualsWithDelta(3000, $byAge['60s'], 3000 * 0.05);
 
         // 서울은 10대 미만·70대 이상을 제공하지 않는다
         $this->assertArrayNotHasKey('under10', $byAge);
@@ -142,35 +157,42 @@ class SeoulTransformerTest extends TestCase
 
         $result = (new CardSalesTransformer)->transform($row, $this->period);
 
-        // 요일 × 시간대 — 시간대 합계가 그대로 보존된다 (00~06 은 밤에 합산)
+        $counts = $this->period->dayCounts();
+        $back = fn (array $r) => $r['sales_amount'] * $counts[$r['day_type']];
+
+        // 요일 × 시간대 — 되곱하면 원본 누적이 복원된다 (00~06 은 밤에 합산)
         $sales = $result['card_sales'];
-        $this->assertEqualsWithDelta(10000000, $this->sum($sales, 'sales_amount'), 100);
+        $this->assertEqualsWithDelta(10000000, array_sum(array_map($back, $sales)), 200);
 
         $byBand = [];
         foreach ($sales as $r) {
-            $byBand[$r['time_band']] = ($byBand[$r['time_band']] ?? 0) + $r['sales_amount'];
+            $byBand[$r['time_band']] = ($byBand[$r['time_band']] ?? 0) + $back($r);
         }
-        $this->assertEqualsWithDelta(3500000, $byBand['lunch'], 50);
-        $this->assertEqualsWithDelta(1500000, $byBand['night'], 50);
+        $this->assertEqualsWithDelta(3500000, $byBand['lunch'], 200);
+        $this->assertEqualsWithDelta(1500000, $byBand['night'], 200);
 
         // 주중/주말 비율 (70% / 30%)
         $byDay = [];
         foreach ($sales as $r) {
-            $byDay[$r['day_type']] = ($byDay[$r['day_type']] ?? 0) + $r['sales_amount'];
+            $byDay[$r['day_type']] = ($byDay[$r['day_type']] ?? 0) + $back($r);
         }
-        $this->assertEqualsWithDelta(7000000, $byDay['weekday'], 100);
-        $this->assertEqualsWithDelta(3000000, $byDay['weekend'], 100);
+        $this->assertEqualsWithDelta(7000000, $byDay['weekday'], 200);
+        $this->assertEqualsWithDelta(3000000, $byDay['weekend'], 200);
 
-        // 성 × 연령 — 연령 합계 보존, 성별 비율 60/40
+        // 성 × 연령 — 요일 축이 없으므로 기간 전체 일수로 나눈 하루 평균이다
         $demo = $result['card_sales_demographics'];
-        $this->assertEqualsWithDelta(10000000, $this->sum($demo, 'sales_amount'), 100);
+        $this->assertEqualsWithDelta(
+            10000000,
+            $this->sum($demo, 'sales_amount') * $this->period->days(),
+            200
+        );
 
         $byGender = [];
         foreach ($demo as $r) {
-            $byGender[$r['gender']] = ($byGender[$r['gender']] ?? 0) + $r['sales_amount'];
+            $byGender[$r['gender']] = ($byGender[$r['gender']] ?? 0) + $r['sales_amount'] * $this->period->days();
         }
-        $this->assertEqualsWithDelta(6000000, $byGender['M'], 100);
-        $this->assertEqualsWithDelta(4000000, $byGender['F'], 100);
+        $this->assertEqualsWithDelta(6000000, $byGender['M'], 200);
+        $this->assertEqualsWithDelta(4000000, $byGender['F'], 200);
 
         // 업종 마스터에 반영할 정보도 함께 나온다
         $this->assertSame([['code' => 'CS100001', 'name' => '한식음식점']], $result['industries']);

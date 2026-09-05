@@ -42,7 +42,7 @@ class InsightWriter
         );
 
         $lines[] = sprintf(
-            '선택지역의 점심시간 총 유동인구는 %s명으로 %s 평균 대비 %s 수준이며, 저녁시간 총 유동인구는 %s명으로 %s 평균 대비 %s 수준입니다.',
+            '선택지역의 점심시간 일평균 유동인구는 %s명으로 %s 평균 대비 %s 수준이며, 저녁시간 일평균 유동인구는 %s명으로 %s 평균 대비 %s 수준입니다.',
             number_format($selected['lunch_floating']),
             $sidoName,
             $levels['lunch_floating'],
@@ -79,7 +79,7 @@ class InsightWriter
         $topGroup = $sales['by_group'][0] ?? null;
 
         $lines[] = sprintf(
-            '선택지역의 %s 기준 월 카드매출 추정 총액은 %s원이며, 총 %s건이 결제되어 건당 평균 %s원입니다.',
+            '선택지역의 %s 기준 일평균 카드매출은 %s원이며, 하루 %s건이 결제되어 건당 평균 %s원입니다.',
             $reportDate,
             $this->money($sales['total_amount']),
             number_format($sales['total_count']),
