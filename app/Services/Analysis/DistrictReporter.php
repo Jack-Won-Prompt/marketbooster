@@ -55,7 +55,7 @@ class DistrictReporter
                 'avg_ticket' => $dailyCount > 0 ? (int) round($dailyAmount / $dailyCount) : 0,
             ],
             'trend' => $this->salesTrend($weights, $period),
-            'stores' => $this->storesByGroup($ring, $byIndustry),
+            'stores' => $this->storesByGroup($ring, $byIndustry) + ['covered' => $coverage['stores']],
             'payment_habits' => $this->paymentHabits($byDayBand, $byGenderAge, $coverage['sales']),
         ];
     }

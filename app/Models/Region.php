@@ -26,7 +26,14 @@ class Region extends Model
         return 'code';
     }
 
-    /** 명칭 부분 검색 (자동완성용) */
+    /**
+     * 명칭 부분 검색 (자동완성용).
+     *
+     * 같은 행정동이 출처마다 다르게 적혀 있다.
+     *   서울(주소 CSV)  : 가양제1동 · 종로1.2.3.4가동
+     *   경기(경계 GeoJSON) : 의정부1동
+     * 사람이 치는 말은 "가양1동" 쪽이라 표기 차이를 검색이 흡수해야 한다.
+     */
     public function scopeSearch(Builder $query, ?string $keyword): Builder
     {
         $keyword = trim((string) $keyword);
@@ -35,12 +42,47 @@ class Region extends Model
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($keyword) {
-            $q->where('full_name', 'like', "%{$keyword}%")
-                ->orWhere('dong_name', 'like', "%{$keyword}%")
-                ->orWhere('sigungu_name', 'like', "%{$keyword}%")
-                ->orWhere('code', 'like', "{$keyword}%");
+        $variants = self::keywordVariants($keyword);
+
+        return $query->where(function (Builder $q) use ($variants) {
+            foreach ($variants as $variant) {
+                $q->orWhere('full_name', 'like', "%{$variant}%")
+                    ->orWhere('dong_name', 'like', "%{$variant}%")
+                    ->orWhere('sigungu_name', 'like', "%{$variant}%")
+                    ->orWhere('code', 'like', "{$variant}%");
+            }
         });
+    }
+
+    /**
+     * 검색어를 표기 차이만큼 늘려 준다.
+     *
+     *   가양1동  → 가양제1동
+     *   가양제1동 → 가양1동
+     *   종로1.2.3.4가동 → 종로1·2·3·4가동
+     *
+     * @return array<int, string>
+     */
+    public static function keywordVariants(string $keyword): array
+    {
+        $variants = [$keyword];
+
+        // 숫자 앞의 "제" 를 넣거나 뺀다. 첫 숫자에만 손대야 "제기동" 같은 이름이 망가지지 않는다.
+        if (preg_match('/\d/u', $keyword)) {
+            $variants[] = preg_replace('/제(\d)/u', '$1', $keyword);
+
+            if (! str_contains($keyword, '제')) {
+                $variants[] = preg_replace('/(\d)/u', '제$1', $keyword, 1);
+            }
+        }
+
+        // 가운뎃점과 마침표를 서로 바꿔 본다.
+        foreach ($variants as $variant) {
+            $variants[] = str_replace('.', '·', $variant);
+            $variants[] = str_replace('·', '.', $variant);
+        }
+
+        return array_values(array_unique(array_filter($variants, fn ($v) => is_string($v) && $v !== '')));
     }
 
     /** 행정동 근사원의 반지름 상한(km). bounding box 를 얼마나 넓힐지 정한다. */

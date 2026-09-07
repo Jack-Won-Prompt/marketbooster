@@ -36,7 +36,7 @@
     <aside class="flex w-full shrink-0 flex-col border-t border-line-soft bg-white lg:h-full lg:w-[420px] lg:border-r lg:border-t-0">
 
         {{-- 상권이 없을 때 --}}
-        <div x-show="!district" x-cloak class="flex flex-1 flex-col items-center justify-center p-8 text-center">
+        <div x-show="!district && !loading" x-cloak class="flex flex-1 flex-col items-center justify-center p-8 text-center">
             <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
                 <svg class="h-7 w-7 text-brand-500" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 7l6-3 4 3 6-3v13l-6 3-4-3-6 3V7z"/>
@@ -177,16 +177,23 @@
                 <section class="px-5 py-4">
                     <div class="flex items-baseline justify-between">
                         <p class="text-[13px] font-extrabold text-ink-900" x-text="`${periodLabel} 상권 매장`"></p>
-                        <span class="text-[11px] text-ink-300"
+                        <span class="text-[11px] text-ink-300" x-show="overview?.stores?.covered"
                               x-text="`${(overview?.stores?.total ?? 0).toLocaleString()}개`"></span>
                     </div>
 
-                    <p class="mt-1 text-[11px] leading-relaxed text-ink-400">
+                    <template x-if="!overview?.stores?.covered">
+                        <p class="mt-3 rounded-xl border border-dashed border-line px-4 py-5 text-center text-[12px] leading-relaxed text-ink-400">
+                            이 범위의 점포를 아직 수집하지 않았습니다.<br>
+                            <code class="rounded bg-surface-muted px-1.5 py-0.5">php artisan sbiz:sync-stores</code> 로 수집하면 나타납니다.
+                        </p>
+                    </template>
+
+                    <p class="mt-1 text-[11px] leading-relaxed text-ink-400" x-show="overview?.stores?.covered">
                         * 매장 수는 상권 안에 좌표가 있는 실제 점포를 센 값이고,
                         매출은 행정동 카드매출을 면적 비율로 안분한 값이라 근거가 서로 다릅니다.
                     </p>
 
-                    <ul class="mt-3 space-y-1.5">
+                    <ul class="mt-3 space-y-1.5" x-show="overview?.stores?.covered">
                         <template x-for="g in (overview?.stores?.groups ?? [])" :key="g.code">
                             <li>
                                 <button type="button" @click="openStores(g.code)"
@@ -315,8 +322,13 @@
                         </li>
                     </template>
 
-                    <li x-show="!(stores?.items ?? []).length" class="px-5 py-10 text-center text-[13px] text-ink-400">
-                        조건에 맞는 매장이 없습니다.
+                    <li x-show="!(stores?.items ?? []).length" class="px-5 py-10 text-center text-[13px] leading-relaxed text-ink-400">
+                        <template x-if="overview?.stores?.covered === false">
+                            <span>이 범위의 점포를 아직 수집하지 않았습니다.</span>
+                        </template>
+                        <template x-if="overview?.stores?.covered !== false">
+                            <span>조건에 맞는 매장이 없습니다.</span>
+                        </template>
                     </li>
                 </ul>
 

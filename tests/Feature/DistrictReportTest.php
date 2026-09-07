@@ -159,6 +159,25 @@ class DistrictReportTest extends TestCase
         $this->assertArrayHasKey('apartment_share', $residence['households']);
     }
 
+    public function test_점포를_수집하지_않은_지역은_0개가_아니라_미수록이다(): void
+    {
+        $this->makeRegion('11500603', '가양1동', 37.50, 127.00);
+        $this->seedStatistics('11500603');   // 통계만 있고 점포는 없다
+
+        $overview = $this->ask('api.districts.overview')->json('overview');
+
+        $this->assertFalse($overview['stores']['covered']);
+        $this->assertSame(0, $overview['stores']['total']);
+
+        // 점포를 넣으면 수록으로 바뀐다.
+        $this->storeAt('in-1', '안쪽식당', 37.5000, 127.0000);
+
+        $covered = $this->ask('api.districts.overview')->json('overview');
+
+        $this->assertTrue($covered['stores']['covered']);
+        $this->assertSame(1, $covered['stores']['total']);
+    }
+
     public function test_수록된_행정동이_없으면_알려준다(): void
     {
         // 행정동을 하나도 만들지 않았다.
