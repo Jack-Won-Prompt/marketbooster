@@ -511,6 +511,24 @@ MAP_TILE_ATTRIBUTION="&copy; Example"
 
 ---
 
+## 7-1. 통계 조회가 인덱스를 타는 조건
+
+`region_code` 는 `varchar` 인데, PHP 는 `"11500603"` 같은 숫자 문자열을 배열 키로 쓰면
+**정수로 바꿔 버립니다.** `array_keys($weights)` 를 그대로 `whereIn` 에 넘기면
+MySQL 이 컬럼을 숫자로 변환하며 비교해 인덱스를 못 타고 매번 풀스캔이 됩니다.
+
+```
+type=ALL  key=NULL  rows=635731   ← 정수로 바인딩했을 때
+type=range key=card_sales_region_yq_idx rows=590   ← 문자열로 바인딩했을 때
+```
+
+`card_sales` 63만 행에서 질의 하나가 3초까지 걸렸고, 상권 보고서 한 번에 14초가 들었습니다.
+`StatisticsRepository::codes()` 가 항상 문자열로 바꿔 넘기며, `StatisticsQueryPlanTest` 가
+바인딩 타입을 지킵니다. **통계 테이블에 `whereIn('region_code', …)` 를 새로 쓸 때는
+반드시 문자열 배열을 넘기세요.**
+
+---
+
 ## 8. 테스트
 
 ```bash

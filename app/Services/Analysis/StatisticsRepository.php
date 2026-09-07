@@ -17,6 +17,21 @@ use Illuminate\Support\Facades\DB;
 class StatisticsRepository
 {
     /**
+     * 행정동코드 목록을 "문자열로" 돌려준다.
+     *
+     * region_code 는 varchar 인데, PHP 는 "11500603" 같은 숫자 문자열을 배열 키로 쓰면
+     * 정수로 바꿔 버린다. 그대로 whereIn 에 넘기면 MySQL 이 컬럼을 숫자로 변환하며
+     * 비교해 인덱스를 못 타고 매번 풀스캔이 된다. (card_sales 63만 행에서 3초)
+     *
+     * @param  array<string, float>  $weights
+     * @return array<int, string>
+     */
+    private static function codes(array $weights): array
+    {
+        return array_map('strval', array_keys($weights));
+    }
+
+    /**
      * @param  array<string, float>  $weights
      * @return array{matrix: array<string, array<string, int>>, male: int, female: int, total: int}
      */
@@ -24,7 +39,7 @@ class StatisticsRepository
     {
         $rows = DB::table('resident_populations')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(population) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'gender', 'age_band')
             ->get();
@@ -40,7 +55,7 @@ class StatisticsRepository
     {
         $rows = DB::table('workplace_populations')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(population) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'gender', 'age_band')
             ->get();
@@ -56,7 +71,7 @@ class StatisticsRepository
     {
         $rows = DB::table('households')
             ->select('region_code', 'housing_type', DB::raw('SUM(households) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'housing_type')
             ->get();
@@ -86,7 +101,7 @@ class StatisticsRepository
     {
         $rows = DB::table('floating_populations')
             ->select('region_code', 'day_type', 'time_band', DB::raw('SUM(population) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'day_type', 'time_band')
             ->get();
@@ -120,7 +135,7 @@ class StatisticsRepository
     {
         $rows = DB::table('floating_populations')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(population) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->where('day_type', $dayType)
             ->groupBy('region_code', 'gender', 'age_band')
@@ -148,7 +163,7 @@ class StatisticsRepository
                 DB::raw('SUM(card_sales.sales_amount) AS amount'),
                 DB::raw('SUM(card_sales.sales_count) AS cnt')
             )
-            ->whereIn('card_sales.region_code', array_keys($weights))
+            ->whereIn('card_sales.region_code', self::codes($weights))
             ->where('card_sales.'.$period->filterColumn(), $period->code)
             ->groupBy('card_sales.region_code', 'card_sales.industry_code', 'card_sales.industry_name', 'card_sales.day_type', 'industries.group_name')
             ->get();
@@ -202,7 +217,7 @@ class StatisticsRepository
     {
         $rows = DB::table('card_sales')
             ->select('region_code', 'day_type', 'time_band', DB::raw('SUM(sales_amount) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'day_type', 'time_band')
             ->get();
@@ -238,7 +253,7 @@ class StatisticsRepository
     {
         $rows = DB::table('card_sales_demographics')
             ->select('region_code', 'gender', 'age_band', DB::raw('SUM(sales_amount) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'gender', 'age_band')
             ->get();
@@ -254,7 +269,7 @@ class StatisticsRepository
     {
         $rows = DB::table('students')
             ->select('region_code', 'school_type', DB::raw('SUM(student_count) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'school_type')
             ->get();
@@ -282,7 +297,7 @@ class StatisticsRepository
     {
         $rows = DB::table('academies')
             ->select('region_code', 'category', 'industry_name', DB::raw('SUM(academy_count) AS value'))
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->where($period->filterColumn(), $period->code)
             ->groupBy('region_code', 'category', 'industry_name')
             ->get();
@@ -333,7 +348,7 @@ class StatisticsRepository
 
         return DB::table('apartment_move_ins')
             ->select('complex_name', 'households', 'move_in_ym')
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->whereBetween('move_in_ym', [$from, $until])
             ->orderByDesc('move_in_ym')
             ->limit($limit)
@@ -354,7 +369,7 @@ class StatisticsRepository
      */
     public function coverage(array $weights, Period $period): array
     {
-        $codes = array_keys($weights);
+        $codes = self::codes($weights);
 
         $tables = [
             'resident' => 'resident_populations',
@@ -393,7 +408,7 @@ class StatisticsRepository
      */
     public function coverageRatio(array $weights, Period $period): array
     {
-        $codes = array_keys($weights);
+        $codes = self::codes($weights);
         $total = array_sum($weights);
 
         if ($total <= 0) {
@@ -466,7 +481,7 @@ class StatisticsRepository
                 'region_code', 'sector', 'large_name', 'middle_name', 'brand', 'brand_source',
                 DB::raw('COUNT(*) AS cnt')
             )
-            ->whereIn('region_code', array_keys($weights))
+            ->whereIn('region_code', self::codes($weights))
             ->groupBy('region_code', 'sector', 'large_name', 'middle_name', 'brand', 'brand_source')
             ->get();
 

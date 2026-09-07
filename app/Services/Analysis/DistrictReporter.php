@@ -30,7 +30,10 @@ class DistrictReporter
      */
     public function overview(array $weights, Period $period, array $ring): array
     {
-        $coverage = $this->stats->coverage($weights, $period);
+        // 수록 여부는 수록 비중에서 그대로 나온다. 같은 것을 두 번 묻지 않는다.
+        $coverageRatio = $this->stats->coverageRatio($weights, $period);
+        $coverage = array_map(fn (float $ratio) => $ratio > 0, $coverageRatio);
+
         $byDayBand = $this->stats->salesByDayAndBand($weights, $period);
         $byGenderAge = $this->stats->salesByGenderAge($weights, $period);
         $byIndustry = $this->stats->salesByIndustry($weights, $period);
@@ -44,7 +47,7 @@ class DistrictReporter
 
         return [
             'coverage' => $coverage,
-            'coverage_ratio' => $this->stats->coverageRatio($weights, $period),
+            'coverage_ratio' => $coverageRatio,
             'sales' => [
                 'daily_amount' => (int) round($dailyAmount),
                 'daily_count' => (int) round($dailyCount),
@@ -61,7 +64,9 @@ class DistrictReporter
     }
 
     /**
-     * 최근 분기별 매출 변화. 수록된 기간이 하나뿐이면 점 하나만 나온다.
+     * 최근 기간별 매출 변화. 수록된 기간이 하나뿐이면 점 하나만 나온다.
+     *
+     * 기간마다 따로 묻지 않고 한 번에 읽는다. 원격 DB 에서는 왕복 횟수가 곧 체감 속도다.
      *
      * @param  array<string, float>  $weights
      * @return array<int, array{code:string, label:string, amount:int, count:int}>
@@ -70,27 +75,51 @@ class DistrictReporter
     {
         $column = $period->filterColumn();
 
-        $codes = DB::table('card_sales')
-            ->whereIn('region_code', array_keys($weights))
+        $rows = DB::table('card_sales')
+            ->select(
+                $column.' AS period_code',
+                'region_code',
+                'day_type',
+                DB::raw('SUM(sales_amount) AS amount'),
+                DB::raw('SUM(sales_count) AS cnt')
+            )
+            ->whereIn('region_code', array_map('strval', array_keys($weights)))
             ->where($column, '!=', '')
-            ->distinct()
-            ->orderByDesc($column)
-            ->limit($limit)
-            ->pluck($column)
-            ->sort()
-            ->values();
+            ->groupBy($column, 'region_code', 'day_type')
+            ->get();
+
+        $acc = [];
+
+        foreach ($rows as $row) {
+            $point = $period->isQuarter() ? Period::quarter($row->period_code) : Period::month($row->period_code);
+            $dayCounts = $point->dayCounts();
+            $totalDays = max(1, $dayCounts['weekday'] + $dayCounts['weekend']);
+
+            /*
+             * 저장값은 "그 요일 구분의 하루 평균" 이다. 평일 하루치와 주말 하루치를
+             * 그냥 더하면 이틀치가 되므로 기간 안의 요일 수로 가중평균해 하루치로 만든다.
+             * (StatisticsRepository::salesByIndustry 와 같은 계산)
+             */
+            $dayWeight = ($dayCounts[$row->day_type] ?? 0) / $totalDays;
+            $weight = ($weights[$row->region_code] ?? 0) * $dayWeight;
+
+            $acc[$row->period_code] ??= ['amount' => 0.0, 'count' => 0.0, 'period' => $point];
+            $acc[$row->period_code]['amount'] += $row->amount * $weight;
+            $acc[$row->period_code]['count'] += $row->cnt * $weight;
+        }
+
+        krsort($acc);
+        $acc = array_slice($acc, 0, $limit, true);
+        ksort($acc);
 
         $trend = [];
 
-        foreach ($codes as $code) {
-            $point = $period->isQuarter() ? Period::quarter($code) : Period::month($code);
-            $rows = $this->stats->salesByIndustry($weights, $point);
-
+        foreach ($acc as $code => $item) {
             $trend[] = [
-                'code' => $code,
-                'label' => $point->label(),
-                'amount' => (int) round(array_sum(array_column($rows, 'amount'))),
-                'count' => (int) round(array_sum(array_column($rows, 'count'))),
+                'code' => (string) $code,
+                'label' => $item['period']->label(),
+                'amount' => (int) round($item['amount']),
+                'count' => (int) round($item['count']),
             ];
         }
 
