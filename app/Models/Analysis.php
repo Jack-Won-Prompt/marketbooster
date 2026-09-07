@@ -13,13 +13,23 @@ class Analysis extends Model
 
     protected $fillable = [
         'uuid', 'user_id', 'title', 'mode', 'center_lat', 'center_lng', 'radius_m',
+        'shape_kind', 'shape_ring', 'area_m2',
         'address', 'region_codes', 'base_ym', 'base_yq', 'status', 'payload', 'error_message', 'completed_at',
+    ];
+
+    /** 그린 상권의 모양 이름 */
+    public const SHAPE_LABELS = [
+        'circle' => '원형 상권',
+        'rectangle' => '사각형 상권',
+        'polygon' => '다각형 상권',
     ];
 
     protected function casts(): array
     {
         return [
             'region_codes' => 'array',
+            'shape_ring' => 'array',
+            'area_m2' => 'integer',
             'payload' => 'array',
             'center_lat' => 'float',
             'center_lng' => 'float',
@@ -61,9 +71,23 @@ class Analysis extends Model
         $this->fill($period->columns());
     }
 
-    /** 분석 범위 설명 문구 (예: "반경 1000m" 또는 "행정동 3곳") */
+    /** 분석 범위 설명 문구 (예: "원형 상권 / 반경 300m / 282,743㎡") */
     public function rangeLabel(): string
     {
+        if ($this->mode === 'polygon') {
+            $parts = [self::SHAPE_LABELS[$this->shape_kind] ?? '다각형 상권'];
+
+            if ($this->shape_kind === 'circle' && $this->radius_m) {
+                $parts[] = '반경 '.number_format((int) $this->radius_m).'m';
+            }
+
+            if ($this->area_m2) {
+                $parts[] = number_format((int) $this->area_m2).'㎡';
+            }
+
+            return implode(' / ', $parts);
+        }
+
         return $this->mode === 'radius'
             ? '반경 '.number_format((int) $this->radius_m).'m'
             : '행정동 '.count($this->region_codes ?? []).'곳';

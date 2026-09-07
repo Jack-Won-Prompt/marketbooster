@@ -374,6 +374,56 @@ php artisan opendata:import card_sales <파일.csv> --ym=20242    # 분기
 
 ---
 
+## 5-1. 상권 보고서 (`/districts`)
+
+지도에 상권을 **직접 그려** 그 안의 통계를 탭으로 나눠 보는 화면입니다.
+[오픈업 상권 보고서](https://www.openub.com/report/area)의 화면 구성을 따라 만들었고,
+실제 화면에서 확인한 기능 목록을 기준으로 구현 범위를 정했습니다.
+
+### 상권 만들기
+
+| 도구 | 조작 |
+|---|---|
+| 원형 | 중심을 누른 채 끌면 반경이 정해집니다 |
+| 사각형 | 한쪽 모서리에서 반대쪽 모서리까지 끕니다 |
+| 다각형 | 꼭짓점을 차례로 찍고 더블클릭하면 닫힙니다 |
+
+- 면적 **500,000㎡ 이하**만 허용합니다. (오픈업과 같은 상한)
+- 세 가지 모두 폴리곤 하나로 다룹니다. 원은 64각형으로 근사합니다.
+  계산은 `App\Support\Geometry` 와 `RegionResolver::fromPolygon()` 이 맡습니다.
+- 통계는 폴리곤 bounding box 에 격자점을 뿌려 각 점이 어느 행정동에 떨어지는지 세는 방식으로
+  겹침 비율을 구하고, 그 비율만큼 안분합니다. (반경 분석과 같은 방식의 일반화)
+
+### 탭
+
+| 탭 | 내용 |
+|---|---|
+| 상권 | 월 추정 매출 · 기간별 매출 변화 · 대분류 6묶음별 매장 수와 매출 · 결제 경향 |
+| 매장 | 상권 안 매장 목록 (대분류 필터 · 이름 검색 · 페이지네이션 · 지도에서 위치 보기) |
+| 주거인구 | 주거인구(성·연령) · 배후세대 · 아파트 세대 비율 · 입주 예정 아파트 |
+
+**매장 수와 매출은 근거가 다릅니다.** 점포는 좌표가 있어 그린 상권 안에 있는지
+정확히 판정하지만(안분하지 않음), 카드매출은 행정동 단위 공개 통계라 면적 비율로 안분합니다.
+화면에도 그렇게 적어 두었습니다.
+
+### 오픈업에 있으나 만들지 않은 것
+
+데이터가 없어서 만들지 않았습니다. 추측으로 채우지 않았습니다.
+
+| 기능 | 이유 |
+|---|---|
+| 신규 매장 배지 ("6개가 새로 생겼어요") | 상가정보에 개업일이 없습니다 |
+| 결제 발생 일별(휴일) · 결제 세대(유자녀) | 서울시 상권분석서비스에 그 축이 없습니다 |
+| 매장 층수 | 상가정보 응답에 층 정보가 없습니다 |
+| 1인 가구 | 행정동 단위 공개 출처를 확보하지 못했습니다 |
+| 아파트 3.3㎡당 실거래가 · 매매 거래량 | 국토교통부 실거래가 API 활용신청이 필요합니다 |
+| 건물 단위 추정 매출 | 오픈업이 자체 AI 로 만드는 값으로 공개 출처가 없습니다 |
+
+기간별 매출 변화는 수록된 분기가 여러 개여야 선이 그려집니다.
+`php artisan seoul:sync card_sales --yq=20261` 처럼 이전 분기를 더 모으면 늘어납니다.
+
+---
+
 ## 6. 리포트 구성
 
 웹 화면(`/analyses/{uuid}`)과 PDF(`/analyses/{uuid}/report.pdf`)가 같은 payload 를 렌더링합니다.
@@ -461,11 +511,12 @@ app/
   Console/Commands/       regions:import · opendata:sync · opendata:import
                           seoul:sync · sbiz:sync-stores · stores:classify
                           opendata:key · opendata:check
-  Http/Controllers/       공개 · 인증 · 분석 · 리포트 · 관리자
+  Http/Controllers/       공개 · 인증 · 분석 · 상권 보고서 · 리포트 · 관리자
   Models/                 행정동 · 경계 · 통계 · 분석
   Services/
     Analysis/             RegionResolver · StatisticsRepository · BenchmarkService
                           MarketAnalyzer · InsightWriter · AnalysisRunner
+                          DistrictReporter (상권 보고서 세 탭)
     OpenData/             PublicDataClient · RecordNormalizer · DatasetWriter
                           DatasetSynchronizer · CsvImporter
     OpenData/Seoul/       SeoulOpenApiClient · SeoulSynchronizer · Transformers(가로→세로)
@@ -475,6 +526,7 @@ app/
     Stores/               StoreClassifier (분야 · 프랜차이즈 분류)
   Support/                Taxonomy(코드·라벨 사전) · Period(월/분기) · Korean(조사 처리)
                           StoreSectors(분야 사전) · Franchises(브랜드 사전)
+                          Geometry(폴리곤 면적·포함 판정·중심점)
 config/
   opendata.php            엔드포인트 · 필드 매핑 · 코드 정규화 사전
   seoul.php               서울 열린데이터광장 서비스 정의
@@ -483,6 +535,7 @@ config/
 resources/views/
   layouts/                공개 사이트 · 앱 셸
   analyses/               지역 선택 · 리포트
+  districts/              상권 보고서 (그리기 + 세 탭)
   reports/pdf.blade.php   PDF 리포트
 storage/app/seed/         행정동 중심점 CSV · 경계 GeoJSON(서울/전국) · 서울 API 필드 명세
 storage/fonts/            PDF 용 Pretendard (웹과 동일)

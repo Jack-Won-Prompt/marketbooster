@@ -4,6 +4,7 @@ namespace App\Services\Analysis;
 
 use App\Models\Region;
 use App\Models\RegionBoundary;
+use App\Support\Geometry;
 use Illuminate\Support\Collection;
 
 /**
@@ -66,6 +67,91 @@ class RegionResolver
         return $weights === []
             ? $this->normalizeToCircle($resolved, M_PI * $radiusKm ** 2)
             : $resolved;
+    }
+
+    /**
+     * 임의의 폴리곤(원·사각형·다각형)으로 상권을 잡는다.
+     *
+     * 반경은 원이라는 특수한 폴리곤일 뿐이라 계산은 같다.
+     * 폴리곤 bounding box 에 격자점을 뿌려, 폴리곤 안에 든 점이 어느 행정동에
+     * 떨어지는지 세어 겹침 비율을 구한다.
+     *
+     * @param  array<int, array{0: float, 1: float}>  $ring  [[lng, lat], ...]
+     * @return Collection<int, array{region: Region, weight: float, distance_km: float}>
+     */
+    public function fromPolygon(array $ring): Collection
+    {
+        if (count($ring) < 3) {
+            return collect();
+        }
+
+        [$minLng, $minLat, $maxLng, $maxLat] = Geometry::bbox($ring);
+        [$centerLng, $centerLat] = Geometry::centroid($ring);
+
+        // bounding box 를 감싸는 원으로 후보를 먼저 좁힌다. (인덱스를 타는 값싼 질의)
+        $coverKm = Geometry::distanceKm($minLat, $minLng, $maxLat, $maxLng) / 2;
+        $candidates = Region::withinRadius($centerLat, $centerLng, (int) ceil($coverKm * 1000))->get();
+
+        if ($candidates->isEmpty()) {
+            return collect();
+        }
+
+        $boundaries = RegionBoundary::whereIn('region_code', $candidates->pluck('code'))->get()->keyBy('region_code');
+        $areaKm2 = Geometry::areaM2($ring) / 1_000_000;
+
+        $hits = [];
+        $inside = 0;
+
+        $stepLng = ($maxLng - $minLng) / (self::GRID_STEPS - 1);
+        $stepLat = ($maxLat - $minLat) / (self::GRID_STEPS - 1);
+
+        for ($i = 0; $i < self::GRID_STEPS; $i++) {
+            $pointLat = $minLat + $i * $stepLat;
+
+            for ($j = 0; $j < self::GRID_STEPS; $j++) {
+                $pointLng = $minLng + $j * $stepLng;
+
+                if (! Geometry::contains($ring, $pointLng, $pointLat)) {
+                    continue;
+                }
+
+                $inside++;
+
+                foreach ($candidates as $region) {
+                    $boundary = $boundaries->get($region->code);
+
+                    if ($boundary && $boundary->contains($pointLng, $pointLat)) {
+                        $hits[$region->code] = ($hits[$region->code] ?? 0) + 1;
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($inside === 0) {
+            return collect();
+        }
+
+        $resolved = $candidates
+            ->map(function (Region $region) use ($hits, $inside, $areaKm2, $centerLat, $centerLng) {
+                $count = $hits[$region->code] ?? 0;
+                $dongArea = $region->area_km2 ?: self::FALLBACK_AREA_KM2;
+
+                return [
+                    'region' => $region,
+                    'weight' => round(min(1.0, ($count / $inside) * $areaKm2 / $dongArea), 4),
+                    'distance_km' => round(
+                        Geometry::distanceKm($centerLat, $centerLng, (float) $region->lat, (float) $region->lng),
+                        3
+                    ),
+                ];
+            })
+            ->filter(fn (array $item) => $item['weight'] >= self::MIN_WEIGHT)
+            ->sortByDesc('weight')
+            ->values();
+
+        return $resolved;
     }
 
     /**

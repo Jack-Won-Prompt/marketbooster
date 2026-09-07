@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\FavoriteRegionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MarketMapController;
@@ -49,6 +50,15 @@ Route::middleware('auth')->group(function () {
 
     // 지도에서 위치를 찍어 그 자리의 상권을 바로 보는 화면
     Route::get('/map', [MarketMapController::class, 'index'])->name('map');
+
+    // 지도에 상권을 직접 그려 보는 화면 (원 · 사각형 · 다각형)
+    Route::get('/districts', [DistrictController::class, 'index'])->name('districts.index');
+
+    Route::prefix('api/districts')->name('api.districts.')->group(function () {
+        Route::post('overview', [DistrictController::class, 'overview'])->name('overview');
+        Route::post('stores', [DistrictController::class, 'stores'])->name('stores');
+        Route::post('residence', [DistrictController::class, 'residence'])->name('residence');
+    });
 
     Route::get('/analyses', [AnalysisController::class, 'index'])->name('analyses.index');
     Route::get('/analyses/new', [AnalysisController::class, 'create'])->name('analyses.create');

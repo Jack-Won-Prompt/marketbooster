@@ -94,6 +94,11 @@ class MarketAnalyzer
      */
     public function resolveRegions(Analysis $analysis): Collection
     {
+        // 지도에 직접 그린 상권. 원·사각형·다각형 모두 폴리곤 하나로 다룬다.
+        if ($analysis->mode === 'polygon' && $analysis->shape_ring) {
+            return $this->resolver->fromPolygon($analysis->shape_ring);
+        }
+
         if ($analysis->mode === 'radius' && $analysis->center_lat && $analysis->center_lng) {
             return $this->resolver->fromRadius(
                 (float) $analysis->center_lat,

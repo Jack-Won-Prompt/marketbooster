@@ -91,6 +91,58 @@ class StoreSectors
         'life_service', 'professional', 'retail_etc', self::UNKNOWN,
     ];
 
+    /**
+     * 대분류 6묶음. 상권 보고서에서 "음식 425개 매장" 처럼 크게 세는 단위다.
+     *
+     * 소상공인 표준 대분류는 10개로 쪼개져 있어 그대로 늘어놓으면 읽기 어렵다.
+     * 서비스 성격의 대분류들을 하나로 묶어 6개로 줄인다.
+     *
+     * @var array<string, array{0: string, 1: array<int, string>}>  묶음 => [이름, 대분류코드들]
+     */
+    public const GROUPS = [
+        'food' => ['음식', ['I2']],
+        'retail' => ['소매', ['G2']],
+        'service' => ['서비스', ['S2', 'M1', 'N1', 'L1', 'Q1']],
+        'leisure' => ['오락', ['R1']],
+        'education' => ['교육', ['P1']],
+        'lodging' => ['숙박', ['I1']],
+    ];
+
+    /**
+     * 카드매출 업종 대분류(industries.group_name) => 위 6묶음.
+     *
+     * 카드매출은 서울시 상권분석서비스의 업종 체계라 상가정보 업종코드와 다르다.
+     * 같은 화면에서 "음식 매장 수 / 음식 매출" 을 나란히 보여 주려면 둘을 같은 칸에 넣어야 한다.
+     *
+     * @var array<string, string>
+     */
+    public const SALES_GROUPS = [
+        '요식' => 'food',
+        '소매' => 'retail',
+        '서비스' => 'service',
+        '의료' => 'service',
+        '여가' => 'leisure',
+        '교육' => 'education',
+        '숙박' => 'lodging',
+    ];
+
+    /** 대분류코드 => 묶음 코드 */
+    public static function groupOf(?string $largeCode): ?string
+    {
+        foreach (self::GROUPS as $key => [, $codes]) {
+            if (in_array((string) $largeCode, $codes, true)) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    public static function groupLabel(string $group): string
+    {
+        return self::GROUPS[$group][0] ?? '기타';
+    }
+
     public static function resolve(?string $large, ?string $middle, ?string $small): string
     {
         // 코드가 비어 오는 행이 있어 null 을 그대로 첨자로 쓰지 않는다.

@@ -164,6 +164,32 @@ trait MakesMarketData
         }
     }
 
+    /** 좌표를 지정해 점포 하나를 심는다. 그린 상권 안/밖을 가려야 할 때 쓴다. */
+    protected function storeAt(
+        string $id,
+        string $name,
+        float $lat,
+        float $lng,
+        string $largeCode = 'I2',
+        string $middleCode = 'I201',
+        string $smallCode = 'I20101',
+    ): void {
+        $now = now();
+        $classification = \App\Services\Stores\StoreClassifier::forRow($name, $largeCode, $middleCode, $smallCode);
+
+        DB::table('stores')->insert($classification + [
+            'store_id' => $id,
+            'name' => $name,
+            'region_code' => '11500603',
+            'sido_name' => '서울특별시', 'sigungu_name' => '강서구', 'dong_name' => '가양1동',
+            'large_code' => $largeCode, 'large_name' => '테스트',
+            'middle_code' => $middleCode, 'middle_name' => '테스트',
+            'small_code' => $smallCode, 'small_name' => '테스트',
+            'lat' => $lat, 'lng' => $lng,
+            'collected_at' => $now, 'created_at' => $now, 'updated_at' => $now,
+        ]);
+    }
+
     /**
      * 점포만 있는 지역(예: 경기도)을 만들기 위한 상가 데이터.
      * 업종코드를 넘기면 분야가 갈리는 경우까지 만들 수 있다.

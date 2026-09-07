@@ -6,6 +6,7 @@ use App\Models\Analysis;
 use App\Models\Region;
 use App\Services\Analysis\AnalysisRunner;
 use App\Services\Analysis\StatisticsRepository;
+use App\Support\Geometry;
 use App\Support\Period;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,11 +46,15 @@ class AnalysisController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:120'],
-            'mode' => ['required', Rule::in(['radius', 'region'])],
+            'mode' => ['required', Rule::in(['radius', 'region', 'polygon'])],
             'center_lat' => ['required_if:mode,radius', 'nullable', 'numeric', 'between:-90,90'],
             'center_lng' => ['required_if:mode,radius', 'nullable', 'numeric', 'between:-180,180'],
             'radius_m' => ['required_if:mode,radius', 'nullable', 'integer', 'min:100', 'max:5000'],
             'address' => ['nullable', 'string', 'max:200'],
+            // 지도에 그린 상권. shape_ring 은 JSON 문자열로 온다.
+            'shape_kind' => ['required_if:mode,polygon', 'nullable', Rule::in(['circle', 'rectangle', 'polygon'])],
+            'shape_ring' => ['required_if:mode,polygon', 'nullable', 'string'],
+            'area_m2' => ['nullable', 'integer', 'min:0'],
             'region_codes' => ['required_if:mode,region', 'nullable', 'array', 'max:30'],
             'region_codes.*' => ['string', 'exists:regions,code'],
             // 월(YYYYMM) 또는 분기(YYYYQ) 코드를 받는다.
@@ -57,10 +62,18 @@ class AnalysisController extends Controller
         ], [
             'region_codes.required_if' => '분석할 행정동을 한 곳 이상 선택해 주세요.',
             'center_lat.required_if' => '지도를 클릭하거나 주소를 검색해 중심 지점을 지정해 주세요.',
+            'shape_ring.required_if' => '지도에 상권을 먼저 그려 주세요.',
             'period.regex' => '기준 기간은 YYYYMM(월) 또는 YYYYQ(분기) 형식이어야 합니다.',
         ]);
 
         $period = Period::parse($validated['period']);
+        $ring = $validated['mode'] === 'polygon'
+            ? Geometry::normalizeRing(json_decode($validated['shape_ring'] ?? '[]', true) ?: [])
+            : [];
+
+        if ($validated['mode'] === 'polygon' && count($ring) < 3) {
+            return back()->withInput()->withErrors(['shape_ring' => '상권 모양을 읽을 수 없습니다. 다시 그려 주세요.']);
+        }
 
         $analysis = $request->user()->analyses()->create([
             'title' => $validated['title'],
@@ -68,6 +81,9 @@ class AnalysisController extends Controller
             'center_lat' => $validated['center_lat'] ?? null,
             'center_lng' => $validated['center_lng'] ?? null,
             'radius_m' => $validated['radius_m'] ?? null,
+            'shape_kind' => $validated['mode'] === 'polygon' ? $validated['shape_kind'] : null,
+            'shape_ring' => $ring ?: null,
+            'area_m2' => $ring ? (int) round(Geometry::areaM2($ring)) : null,
             'address' => $validated['address'] ?? null,
             'region_codes' => $validated['region_codes'] ?? [],
             'status' => 'pending',
